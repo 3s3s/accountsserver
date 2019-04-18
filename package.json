@@ -1,0 +1,18 @@
+{
+  "name": "OpenTrade",
+  "version": "0.2.0",
+  "description": "Open Source Cryptocurrency Exchange",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/3s3s/opentrade.git"
+  },
+  "dependencies": {
+    "compression": "latest",
+    "cors": "latest",
+    "ejs": "latest",
+    "express": "^4.16.4",
+    "sendmail": "latest",
+    "sqlite3": "latest",
+    "ws": "^6.2.0"
+  }
+}
