@@ -5,11 +5,10 @@ const DOMAIN = 'localhost';
 exports.DEBUG_LOG = true;
 
 exports.share = {
-    my_portSSL: 40743,
     my_port: 40745
 };
 
-const DATABASE_PATH = '/home/accounts/opentrade/accountsServer/database/sqlite_accounts.db';
+const DATABASE_PATH = '/home/opentrade/accountsServer/database/sqlite_accounts.db';
 exports.dbTables = [
    {
       'name' : 'KeyValue',
@@ -62,12 +61,14 @@ exports.dbTables = [
    }
 ]
 
+let PRIVATE = false;
+try { PRIVATE = require("./private_constants/private.js");}catch(e){}
 
 exports.DOMAIN = DOMAIN;
 exports.PORT_DB = 40545;
-exports.dbName = DATABASE_PATH;
-exports.SSL_KEY = '../ssl_certificates/privkey.pem';
-exports.SSL_CERT = '../ssl_certificates/fullchain.pem';
+exports.dbName = PRIVATE ? PRIVATE.DATABASE_PATH : DATABASE_PATH;
+exports.SSL_KEY = './ssl_certificates/privkey.pem';
+exports.SSL_CERT = './ssl_certificates/fullchain.pem';
 
 exports.SSL_options = {
     key: require("fs").readFileSync(exports.SSL_KEY),
@@ -76,9 +77,7 @@ exports.SSL_options = {
 
 exports.IsAllowedAddress = function(addr)
 {
-//    if (PRIVATE.IsUnlimitedAddress && PRIVATE.IsUnlimitedAddress(addr))
-//        return true;
-    if (addr.indexOf("195.64.208.208") < 0 && addr.indexOf("165.22.131.199") < 0)
+    if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf(PRIVATE ? PRIVATE.LocalIP : "127.0.0.1") < 0)
         return false;
 
         

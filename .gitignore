@@ -9,6 +9,7 @@ node_modules/
 *.crt
 
 # Others
+private_constants/
 *.log
 *.py
 *.out
