@@ -1,5 +1,6 @@
 'use strict';
 const utils = require("../utils");
+const g_constants = require("../constants");
 
 exports.Run = function(coin, headers, post_data, res)
 {
@@ -7,5 +8,24 @@ exports.Run = function(coin, headers, post_data, res)
         console.log(result.data);
         res.end(result.data || "");
     });
+}
+
+exports.toDB = function(coinName, account, address)
+{
+    return new Promise(async ok => {
+        try {
+            await g_constants.dbTables["addresses"].Insert(
+                coinName,
+                account,
+                address,
+                utils.Hash(coinName+account+address),
+                JSON.stringify({})
+            );
+        }
+        catch(e){
+            console.log(e.message)
+        }
+        ok();
+    })
 }
 

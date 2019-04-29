@@ -3,6 +3,12 @@ const util = require('util');
 const http = require('http');
 const https = require('https');
 const g_crypto = require('crypto');
+const g_constants = require("./constants");
+
+const listtransactions = require("./RPC/listtransactions");
+const listaccounts = require("./RPC/listaccounts");
+const getaddressesbyaccount = require("./RPC/getaddressesbyaccount");
+const setaccount = require("./RPC/setaccount");
 
 
 const log_file_db = require("fs").createWriteStream(__dirname + '/debug_db.log', {flags : 'w'});
@@ -148,3 +154,151 @@ exports.postString = function(host, port, path, headers, strBody, cd)
 
     })
 };
+
+exports.SaveAddresses = function(coin, headers, account)
+{
+    return new Promise(async ok => {
+        const addrs = await getaddressesbyaccount.queryDaemon(coin, headers, account);
+        
+        if (!addrs || !addrs.length)
+            return ok();
+        
+        for (let i=0; i<addrs.length; i++)    
+            await setaccount.toDB(coin.name, account, addrs[i]);
+            
+        return ok();
+    });
+}
+
+exports.SaveAllTransactions = function(coin, headers)
+{
+    return new Promise(async ok => {
+        const accounts = await listaccounts.queryDaemon(coin, headers);
+
+        for (let key in accounts)
+        {
+            await exports.Sleep(1000);
+                
+            if (exports.IsOffline(coin.name)) throw "";
+                
+            console.log('new account for '+coin.name+" key="+key);
+            
+            await exports.SaveAddresses(coin, headers, key);
+            
+            await exports.SaveLastTransactions(coin, headers, 20000);
+        }
+    });    
+}
+
+exports.SaveLastTransactions = function(coin, headers, count=1000)
+{
+    return new Promise(async ok => {
+        const txs = await listtransactions.queryDaemon(coin, headers, "*", count);
+            
+        if (txs)
+            exports.Offline(coin.name, false);
+        if (!txs || !txs.length) throw "";
+                
+        console.log('FillLast save for '+coin.name+" count="+txs.length);
+            
+        await exports.SaveTransactions(coin, headers, txs);
+                
+        console.log('SAVED for '+coin.name+" count="+txs.length);
+        ok();
+    });
+}
+
+exports.SaveTransactions = function(coin, headers, txs)
+{
+    const coinName = coin.name;
+    
+    return new Promise(async (ok, cancel) => {
+        let bFirstSkip = true;
+        for (let i=0; i<txs.length; i++)
+        {
+            const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
+                    
+            const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
+            if (rows.length)
+            {
+                if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
+                    ((rows[0].account == escape(" ") || !rows[0].account.length) && txs[i].account && txs[i].account.length) ||
+                    (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations))
+                {
+                    const account = txs[i].account && txs[i].account.length ? txs[i].account : rows[0].account;
+                    const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? txs[i].otheraccount : rows[0].otheraccount;
+                    const confirmations = txs[i].confirmations || 0;
+                    
+                    await g_constants.dbTables["listtransactions"].Update(
+                        "blockhash='"+txs[i].blockhash+"', blockindex="+txs[i].blockindex+", blocktime="+txs[i].blocktime+
+                        ", account='"+account+"' "+ ", otheraccount='"+otheraccount+"', confirmations="+confirmations,
+                        "uid='"+escape(uid)+"'"
+                    );
+                    continue;
+                }
+                if (bFirstSkip) console.log("skip insert for "+coinName);
+                bFirstSkip = false;
+                
+                LogBalance(coinName, txs[i].account);
+                continue;
+            }
+            
+            if (txs[i].comment)
+            {
+                try {
+                    const data = JSON.parse(txs[i].comment);
+                    if (txs[i].category == 'send' && (!txs[i].account || !txs[i].account.length))
+                        txs[i].account = data[0].from;
+                }
+                catch(e) {}
+            }
+                        
+            try {
+                await g_constants.dbTables["listtransactions"].Insert(
+                    coinName,
+                    txs[i].account||" ",
+                    txs[i].address||" ",
+                    txs[i].category||" ",
+                    txs[i].amount||"0",
+                    txs[i].label||" ",
+                    txs[i].vout||"-1",
+                    txs[i].fee||"0",
+                    txs[i].confirmations||"0",
+                    txs[i].trusted||" ",
+                    txs[i].blockhash||" ",
+                    txs[i].blockindex||"-1",
+                    txs[i].blocktime||"-1",
+                    txs[i].txid||" ",
+                    txs[i].time||"-1",
+                    txs[i].timereceived||"-1",
+                    txs[i].comment||" ",
+                    txs[i].otheraccount||" ",
+                    txs[i].bip125_replaceable||"",
+                    txs[i].abandoned||" ",
+                    uid
+                );
+            }
+            catch(err) {}
+        }
+        
+        ok();
+    });
+}
+
+let isLogged = {};
+async function LogBalance(coinName, account)
+{
+    if (isLogged[coinName + account])
+        return;
+        
+    isLogged[coinName + account] = true;
+    
+    const rowsSkip = await g_constants.dbTables["listtransactions"].Select2("SUM( 1*amount + 1*fee ) AS balance", "coin='"+escape(coinName)+"' AND category<>'move' AND blocktime=-1 AND account='"+account+"' ");
+    const rows = await g_constants.dbTables["listtransactions"].Select2("SUM (1*amount + 1*fee) AS balance", "coin='"+escape(coinName)+"' AND account='"+account+"' ");
+    
+    const skip = rowsSkip && rowsSkip.length ? rowsSkip[0].balance : 0;
+    const balance = rows && rows.length ? rows[0].balance : 0;
+    
+    if (Math.abs(balance*1-skip*1) > 0.000001 && account.indexOf("fae6ce5db2d643014fbe57546c82bc9a") == -1)
+        exports.log_db("account="+account+" "+coinName+" balance="+(balance*1-skip*1));
+}

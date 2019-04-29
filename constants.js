@@ -18,6 +18,16 @@ exports.dbTables = [
         ]
    },
    {
+      'name' : 'addresses',
+      'cols' : [
+          ['coin', 'TEXT'],
+          ['account', 'TEXT'],
+          ['address', 'TEXT'],
+          ['uid', 'TEXT UNIQUE PRIMARY KEY'],
+          ['info', 'TEXT']
+        ]
+   },
+   {
        'name': 'Transactions',
        'cols': [
            ['hash', 'TEXT UNIQUE PRIMARY KEY'],
@@ -77,10 +87,9 @@ exports.SSL_options = {
 
 exports.IsAllowedAddress = function(addr)
 {
-    if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf(PRIVATE ? PRIVATE.LocalIP : "127.0.0.1") < 0)
-        return false;
+//    if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf(PRIVATE ? PRIVATE.LocalIP : "127.0.0.1") < 0)
+//        return false;
 
-        
     return true;
 }
 

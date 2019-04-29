@@ -190,7 +190,8 @@ exports.Init = async function(callback)
     
     //g_db = new sqlite3.Database(g_constants.dbName);
     
-    //g_db.run('DROP TABLE history');
+    remoteRun('DROP TABLE all_addresses');
+    remoteRun('DROP TABLE addresses');
     //g_db.run('ALTER TABLE orders ADD COLUMN uuid TEXT UNIQUE')
     
     RunDBTransaction();
@@ -198,6 +199,9 @@ exports.Init = async function(callback)
     
     function CreateIndex(indexObject)
     {
+        remoteRun('DROP TABLE all_addresses', () => {
+            remoteRun('DROP TABLE addresses');
+        });
         //g_db.run("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", function(err){
         remoteRun("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", err => {
             if (err) throw new Error(err.message);
