@@ -10,7 +10,7 @@ exports.Run = function(coin, headers, post_data, res)
     });
 }
 
-exports.toDB = function(coinName, account, address)
+exports.toDB = function(coinName, account, address, time)
 {
     return new Promise(async ok => {
         try {
@@ -18,6 +18,7 @@ exports.toDB = function(coinName, account, address)
                 coinName,
                 account,
                 address,
+                time,
                 utils.Hash(coinName+account+address),
                 JSON.stringify({})
             );

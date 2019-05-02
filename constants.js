@@ -23,6 +23,7 @@ exports.dbTables = [
           ['coin', 'TEXT'],
           ['account', 'TEXT'],
           ['address', 'TEXT'],
+          ['time', 'INT'],
           ['uid', 'TEXT UNIQUE PRIMARY KEY'],
           ['info', 'TEXT']
         ]

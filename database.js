@@ -199,9 +199,9 @@ exports.Init = async function(callback)
     
     function CreateIndex(indexObject)
     {
-        remoteRun('DROP TABLE all_addresses', () => {
+        /*remoteRun('DROP TABLE all_addresses', () => {
             remoteRun('DROP TABLE addresses');
-        });
+        });*/
         //g_db.run("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", function(err){
         remoteRun("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", err => {
             if (err) throw new Error(err.message);

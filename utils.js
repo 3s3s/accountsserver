@@ -158,13 +158,17 @@ exports.postString = function(host, port, path, headers, strBody, cd)
 exports.SaveAddresses = function(coin, headers, account)
 {
     return new Promise(async ok => {
+        /*if (account == "a4e9047c9ea32dc7369357883d3b880b")
+        {
+            let i = 0;
+        }*/
         const addrs = await getaddressesbyaccount.queryDaemon(coin, headers, account);
         
         if (!addrs || !addrs.length)
             return ok();
         
         for (let i=0; i<addrs.length; i++)    
-            await setaccount.toDB(coin.name, account, addrs[i]);
+            await setaccount.toDB(coin.name, account, addrs[i], Date.now());
             
         return ok();
     });
@@ -172,21 +176,23 @@ exports.SaveAddresses = function(coin, headers, account)
 
 exports.SaveAllTransactions = function(coin, headers)
 {
+    //if (coin.name != 'Wavi')
+    //    return;
     return new Promise(async ok => {
+        
         const accounts = await listaccounts.queryDaemon(coin, headers);
 
         for (let key in accounts)
         {
-            await exports.Sleep(1000);
-                
             if (exports.IsOffline(coin.name)) throw "";
                 
             console.log('new account for '+coin.name+" key="+key);
             
             await exports.SaveAddresses(coin, headers, key);
-            
-            await exports.SaveLastTransactions(coin, headers, 20000);
         }
+
+        await exports.SaveLastTransactions(coin, headers, 20000);
+        ok();
     });    
 }
 
@@ -221,17 +227,27 @@ exports.SaveTransactions = function(coin, headers, txs)
             const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
             if (rows.length)
             {
-                if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
-                    ((rows[0].account == escape(" ") || !rows[0].account.length) && txs[i].account && txs[i].account.length) ||
-                    (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations))
+                if (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations)
                 {
-                    const account = txs[i].account && txs[i].account.length ? txs[i].account : rows[0].account;
-                    const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? txs[i].otheraccount : rows[0].otheraccount;
-                    const confirmations = txs[i].confirmations || 0;
+                    const confirmations = escape(txs[i].confirmations) || 0;
                     
                     await g_constants.dbTables["listtransactions"].Update(
-                        "blockhash='"+txs[i].blockhash+"', blockindex="+txs[i].blockindex+", blocktime="+txs[i].blocktime+
-                        ", account='"+account+"' "+ ", otheraccount='"+otheraccount+"', confirmations="+confirmations,
+                        "confirmations="+confirmations,
+                        "uid='"+escape(uid)+"'"
+                    );
+                    continue;
+                    
+                }
+                if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
+                    (rows[0].account == "%20"))// && txs[i].account && txs[i].account.length))
+                {
+                    //const account = await GetAccount(txs[i].account && txs[i].account.length ? escape(txs[i].account) : rows[0].account, txs[i].address);
+                    const account = await GetAccount(txs[i].address);
+                    const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? escape(txs[i].otheraccount) : rows[0].otheraccount;
+
+                    await g_constants.dbTables["listtransactions"].Update(
+                        "blockhash='"+escape(txs[i].blockhash)+"', blockindex="+escape(txs[i].blockindex)+", blocktime="+escape(txs[i].blocktime)+
+                        ", account='"+escape(account)+"' "+ ", otheraccount='"+otheraccount+"' ",
                         "uid='"+escape(uid)+"'"
                     );
                     continue;
@@ -252,11 +268,12 @@ exports.SaveTransactions = function(coin, headers, txs)
                 }
                 catch(e) {}
             }
-                        
+            
+            const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address);
             try {
                 await g_constants.dbTables["listtransactions"].Insert(
                     coinName,
-                    txs[i].account||" ",
+                    account,
                     txs[i].address||" ",
                     txs[i].category||" ",
                     txs[i].amount||"0",
@@ -283,6 +300,21 @@ exports.SaveTransactions = function(coin, headers, txs)
         
         ok();
     });
+}
+
+function GetAccount(address)
+{
+    return new Promise((async ok => {
+        const rows = await g_constants.dbTables["addresses"].Select2("*", "address='"+escape(address)+"'");
+        if (rows.length)
+            return ok(unescape(rows[0].account));
+        
+        const rows2 = await g_constants.dbTables["listtransactions"].Select2("*", "address='"+escape(address)+"' AND account<>'%20' LIMIT 1");
+        if (rows2.length)
+            return ok(unescape(rows2[0].account));
+
+        return ok(" ");
+    }));
 }
 
 let isLogged = {};
