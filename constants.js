@@ -2,7 +2,7 @@
 
 const DOMAIN = 'localhost';
 
-exports.DEBUG_LOG = true;
+exports.DEBUG_LOG = false;
 
 exports.share = {
     my_port: 40745

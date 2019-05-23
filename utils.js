@@ -158,7 +158,7 @@ exports.postString = function(host, port, path, headers, strBody, cd)
 exports.SaveAddresses = function(coin, headers, account)
 {
     return new Promise(async ok => {
-        /*if (account == "a4e9047c9ea32dc7369357883d3b880b")
+       /* if (account == "14ae808519f026fdbb31c426b2096a35")
         {
             let i = 0;
         }*/
@@ -176,41 +176,52 @@ exports.SaveAddresses = function(coin, headers, account)
 
 exports.SaveAllTransactions = function(coin, headers)
 {
-    //if (coin.name != 'Wavi')
-    //    return;
-    return new Promise(async ok => {
-        
-        const accounts = await listaccounts.queryDaemon(coin, headers);
-
-        for (let key in accounts)
+    return new Promise(async (ok, cancel) => {
+        try
         {
-            if (exports.IsOffline(coin.name)) throw "";
+            const accounts = await listaccounts.queryDaemon(coin, headers);
+    
+            for (let key in accounts)
+            {
+                if (exports.IsOffline(coin.name)) return cancel(new Error("SaveAllTransactions: CANCEL coin is offlibe " + coin.name));
+                    
+                console.log('new account for '+coin.name+" key="+key);
                 
-            console.log('new account for '+coin.name+" key="+key);
+                await exports.SaveAddresses(coin, headers, key);
+            }
+    
+            await exports.SaveLastTransactions(coin, headers, 20000);
             
-            await exports.SaveAddresses(coin, headers, key);
+            return ok();
         }
-
-        await exports.SaveLastTransactions(coin, headers, 20000);
-        ok();
+        catch(e) {
+            return cancel(e);
+        }
     });    
 }
 
 exports.SaveLastTransactions = function(coin, headers, count=1000)
 {
-    return new Promise(async ok => {
-        const txs = await listtransactions.queryDaemon(coin, headers, "*", count);
-            
-        if (txs)
-            exports.Offline(coin.name, false);
-        if (!txs || !txs.length) throw "";
+    return new Promise(async (ok, cancel) => {
+        try
+        {
+            const txs = await listtransactions.queryDaemon(coin, headers, "*", count);
                 
-        console.log('FillLast save for '+coin.name+" count="+txs.length);
-            
-        await exports.SaveTransactions(coin, headers, txs);
+            if (txs) exports.Offline(coin.name, false);
                 
-        console.log('SAVED for '+coin.name+" count="+txs.length);
-        ok();
+            if (!txs || !txs.length) return cancel(new Error("SaveLastTransactions: CANCEL coin daemon failed "+coin.name));
+                    
+            console.log('FillLast save for '+coin.name+" count="+txs.length);
+                
+            await exports.SaveTransactions(coin, headers, txs);
+                    
+            console.log('SAVED for '+coin.name+" count="+txs.length);
+            
+            return ok();
+        }
+        catch(e) {
+            return cancel(e);
+        }
     });
 }
 
@@ -219,85 +230,103 @@ exports.SaveTransactions = function(coin, headers, txs)
     const coinName = coin.name;
     
     return new Promise(async (ok, cancel) => {
-        let bFirstSkip = true;
-        for (let i=0; i<txs.length; i++)
-        {
-            const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
-                    
-            const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
-            if (rows.length)
+        try {
+            
+            let bFirstSkip = true;
+            for (let i=0; i<txs.length; i++)
             {
-                if (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations)
+                if (txs[i].comment)
                 {
-                    const confirmations = escape(txs[i].confirmations) || 0;
-                    
-                    await g_constants.dbTables["listtransactions"].Update(
-                        "confirmations="+confirmations,
-                        "uid='"+escape(uid)+"'"
-                    );
-                    continue;
-                    
+                    try {
+                        const data = JSON.parse(txs[i].comment);
+                        if (txs[i].category == 'send' && data[0].from && data[0].from.length > 3)
+                            txs[i].account = data[0].from;
+                    }
+                    catch(e) {}
                 }
-                if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
-                    (rows[0].account == "%20"))// && txs[i].account && txs[i].account.length))
-                {
-                    //const account = await GetAccount(txs[i].account && txs[i].account.length ? escape(txs[i].account) : rows[0].account, txs[i].address);
-                    const account = await GetAccount(txs[i].address);
-                    const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? escape(txs[i].otheraccount) : rows[0].otheraccount;
 
-                    await g_constants.dbTables["listtransactions"].Update(
-                        "blockhash='"+escape(txs[i].blockhash)+"', blockindex="+escape(txs[i].blockindex)+", blocktime="+escape(txs[i].blocktime)+
-                        ", account='"+escape(account)+"' "+ ", otheraccount='"+otheraccount+"' ",
-                        "uid='"+escape(uid)+"'"
-                    );
+                const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
+                        
+                const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
+                if (rows.length)
+                {
+                    let account = rows[0].account == "%20" ? 
+                        (txs[i].account && txs[i].account.length > 3 ? txs[i].account : await GetAccount(txs[i].address)) : 
+                        rows[0].account;
+                            
+                    if (txs[i].category == 'send' && txs[i].account && txs[i].account.length)
+                        account = txs[i].account;
+                    //console.log('SaveTransactions1 coin='+coinName+', account='+txs[i].account);
+                    
+                    if (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations)
+                    {
+                        const confirmations = escape(txs[i].confirmations) || 0;
+                        
+                        await g_constants.dbTables["listtransactions"].Update(
+                            "confirmations="+confirmations+", account='"+account+"'",
+                            "uid='"+escape(uid)+"'"
+                        );
+                    }
+                    if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
+                        (rows[0].account == "%20"))// && txs[i].account && txs[i].account.length))
+                    {
+                        const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? escape(txs[i].otheraccount) : rows[0].otheraccount;
+    
+                        await g_constants.dbTables["listtransactions"].Update(
+                            "blockhash='"+escape(txs[i].blockhash)+"', blockindex="+escape(txs[i].blockindex)+", blocktime="+escape(txs[i].blocktime)+
+                            ", account='"+escape(account)+"' "+ ", otheraccount='"+otheraccount+"' ",
+                            "uid='"+escape(uid)+"'"
+                        );
+                        
+                        //console.log('Update listtransactions for coinName='+coinName+', account='+account+"(txs[i].txid="+txs[i].txid+", txs[i].account="+txs[i].account+")");
+                        continue;
+                    }
+                    if (bFirstSkip) console.log("skip insert for "+coinName+', account='+txs[i].account);
+                    bFirstSkip = false;
+                    
+                    //LogBalance(coinName, txs[i].account);
                     continue;
                 }
-                if (bFirstSkip) console.log("skip insert for "+coinName);
-                bFirstSkip = false;
                 
-                LogBalance(coinName, txs[i].account);
-                continue;
-            }
-            
-            if (txs[i].comment)
-            {
+                //console.log('SaveTransactions2 coin='+coinName+', account='+txs[i].account);
+                
                 try {
-                    const data = JSON.parse(txs[i].comment);
-                    if (txs[i].category == 'send' && (!txs[i].account || !txs[i].account.length))
-                        txs[i].account = data[0].from;
+                    const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address);
+                    
+                    await g_constants.dbTables["listtransactions"].Insert(
+                        coinName,
+                        account,
+                        txs[i].address||" ",
+                        txs[i].category||" ",
+                        txs[i].amount||"0",
+                        txs[i].label||" ",
+                        txs[i].vout||"-1",
+                        txs[i].fee||"0",
+                        txs[i].confirmations||"0",
+                        txs[i].trusted||" ",
+                        txs[i].blockhash||" ",
+                        txs[i].blockindex||"-1",
+                        txs[i].blocktime||"-1",
+                        txs[i].txid||" ",
+                        txs[i].time||"-1",
+                        txs[i].timereceived||"-1",
+                        txs[i].comment||" ",
+                        txs[i].otheraccount||" ",
+                        txs[i].bip125_replaceable||"",
+                        txs[i].abandoned||" ",
+                        uid
+                    );
                 }
-                catch(e) {}
+                catch(err) {
+                    console.log(err.message+"(SaveTransactions2 coin="+coinName+", account="+txs[i].account+")");
+                }
             }
-            
-            const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address);
-            try {
-                await g_constants.dbTables["listtransactions"].Insert(
-                    coinName,
-                    account,
-                    txs[i].address||" ",
-                    txs[i].category||" ",
-                    txs[i].amount||"0",
-                    txs[i].label||" ",
-                    txs[i].vout||"-1",
-                    txs[i].fee||"0",
-                    txs[i].confirmations||"0",
-                    txs[i].trusted||" ",
-                    txs[i].blockhash||" ",
-                    txs[i].blockindex||"-1",
-                    txs[i].blocktime||"-1",
-                    txs[i].txid||" ",
-                    txs[i].time||"-1",
-                    txs[i].timereceived||"-1",
-                    txs[i].comment||" ",
-                    txs[i].otheraccount||" ",
-                    txs[i].bip125_replaceable||"",
-                    txs[i].abandoned||" ",
-                    uid
-                );
-            }
-            catch(err) {}
+
         }
-        
+        catch(e) {
+            
+        }
+
         ok();
     });
 }
@@ -306,14 +335,14 @@ function GetAccount(address)
 {
     return new Promise((async ok => {
         const rows = await g_constants.dbTables["addresses"].Select2("*", "address='"+escape(address)+"'");
-        if (rows.length)
+        /*if (rows.length)
             return ok(unescape(rows[0].account));
         
         const rows2 = await g_constants.dbTables["listtransactions"].Select2("*", "address='"+escape(address)+"' AND account<>'%20' LIMIT 1");
         if (rows2.length)
-            return ok(unescape(rows2[0].account));
+            return ok(unescape(rows2[0].account));*/
 
-        return ok(" ");
+        return rows.length ? ok(unescape(rows[0].account)) : ok(" ");
     }));
 }
 

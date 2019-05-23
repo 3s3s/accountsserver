@@ -81,7 +81,7 @@ async function FillData (coin, headers, last = 1000000)
             await utils.SaveAllTransactions(coin, headers);
         }
         catch(e) {
-            console.log("catch error for "+coin.name);
+            console.log("catch error for "+coin.name + " " + (e.message || ""));
         }
         
         console.log('WAIT 120 sec for '+coin.name);
@@ -94,7 +94,7 @@ async function FillData (coin, headers, last = 1000000)
             await utils.SaveLastTransactions(coin, headers);
         }
         catch(e) {
-            console.log('FillLast catch error for '+coin.name);
+            console.log('FillLast catch error for '+coin.name+" "+(e.message || ""));
             utils.Offline(coin.name, true);
         }
         

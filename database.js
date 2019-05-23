@@ -190,8 +190,8 @@ exports.Init = async function(callback)
     
     //g_db = new sqlite3.Database(g_constants.dbName);
     
-    remoteRun('DROP TABLE all_addresses');
-    remoteRun('DROP TABLE addresses');
+    //remoteRun('DROP TABLE all_addresses');
+    //remoteRun('DROP TABLE addresses');
     //g_db.run('ALTER TABLE orders ADD COLUMN uuid TEXT UNIQUE')
     
     RunDBTransaction();
