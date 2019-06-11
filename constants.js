@@ -8,7 +8,7 @@ exports.share = {
     my_port: 40745
 };
 
-const DATABASE_PATH = '/home/opentrade/accountsServer/database/sqlite_accounts.db';
+const DATABASE_PATH = '/root/opentrade/accountsserver/database/sqlite_accounts.db';
 exports.dbTables = [
    {
       'name' : 'KeyValue',

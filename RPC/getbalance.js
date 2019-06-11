@@ -41,7 +41,7 @@ exports.GetAccountBalance = function (coinName, account, minconf = 0)
 
         const rows = await g_constants.dbTables["listtransactions"].Select2("SUM ( 1*amount + 1*fee ) AS balance", "coin='"+escape(coinName)+"' AND account='"+escape(account)+"' AND confirmations>="+minconf);
         
-        if (minconf != 0)
+        if (minconf > 0)
         {
             const rowsSkip = await g_constants.dbTables["listtransactions"].Select2("SUM( 1*amount + 1*fee) AS balance", "coin='"+escape(coinName)+"' AND category<>'move' AND blocktime=-1 AND account='"+escape(account)+"'");
             const skip = rowsSkip && rowsSkip.length ? rowsSkip[0].balance : 0;
@@ -62,10 +62,6 @@ exports.GetAccountBalance = function (coinName, account, minconf = 0)
             return ok(ret);
         }
         
-        if (coinName == "Marycoin" && account == "3b0a5347a1ad24e1a75fe7ce2c7906f4")
-        {
-            let r = 0;
-        }
 
         //return ok(rows && rows.length ? 1*rows[0].balance - 1*realSkip : 0);
         return ok(rows && rows.length ? 1*rows[0].balance : 0);
