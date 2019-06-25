@@ -18,10 +18,13 @@ exports.Run = async function(coin, headers, post_data, res)
     //if (coin.name != "Marycoin" && coin.name != "Dogecoin")// ||  (data.params[0] != "3b0a5347a1ad24e1a75fe7ce2c7906f4" && data.params[1] != "3b0a5347a1ad24e1a75fe7ce2c7906f4"))
     //    return res.end(JSON.stringify({error: {message: 'coin is offline'}}));
         
-        const balance = await getbalance.GetAccountBalance(coin.name, data.params[0]);
+        const balance0 = await getbalance.GetAccountBalance(coin.name, data.params[0]);
+        const balance1 = await getbalance.GetAccountBalance(coin.name, data.params[1]);
 
-        if (1*balance < 0)
-            return res.end(JSON.stringify({error: {message: 'bad account balance: '+1*balance} }));
+        if (1*balance0 - 1*data.params[2] < 0)
+            return res.end(JSON.stringify({error: {message: 'bad account balance: '+1*balance0} }));
+        if (1*balance1 + 1*data.params[2] < 0)
+            return res.end(JSON.stringify({error: {message: 'bad account balance: '+1*balance1} }));
             
        // const balanceTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
        // if (balanceTo*1 > 0.01)

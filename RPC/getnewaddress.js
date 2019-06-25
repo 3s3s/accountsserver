@@ -1,11 +1,20 @@
 'use strict';
 const utils = require("../utils");
 
-exports.queryDaemon = function(coin, headers, account = "")
+exports.Run = function(coin, headers, post_data, res)
+{
+    utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
+        console.log(result.data);
+        
+        res.end(result.data || "");
+    });
+}
+
+exports.queryDaemon = function(coin, headers)
 {
     return new Promise(async ok => {
         try {
-            const strJSON = '{"jsonrpc": "1.0", "id":"curltest", "method": "getaddressesbyaccount", "params": ["'+account+'"] }';
+            const strJSON = '{"jsonrpc": "1.0", "id":"curltest", "method": "getnewaddress", "params": [] }';
             const result = await utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, strJSON);
             
             if (result.success == false)
@@ -17,9 +26,4 @@ exports.queryDaemon = function(coin, headers, account = "")
             return ok(null)
         }
     });
-}
-
-exports.fromDB = function(coinName, account)
-{
-    
 }

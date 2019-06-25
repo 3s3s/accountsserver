@@ -335,18 +335,12 @@ function GetAccount(address)
 {
     return new Promise((async ok => {
         const rows = await g_constants.dbTables["addresses"].Select2("*", "address='"+escape(address)+"'");
-        /*if (rows.length)
-            return ok(unescape(rows[0].account));
-        
-        const rows2 = await g_constants.dbTables["listtransactions"].Select2("*", "address='"+escape(address)+"' AND account<>'%20' LIMIT 1");
-        if (rows2.length)
-            return ok(unescape(rows2[0].account));*/
 
         return rows.length ? ok(unescape(rows[0].account)) : ok(" ");
     }));
 }
 
-let isLogged = {};
+/*let isLogged = {};
 async function LogBalance(coinName, account)
 {
     if (isLogged[coinName + account])
@@ -362,4 +356,4 @@ async function LogBalance(coinName, account)
     
     if (Math.abs(balance*1-skip*1) > 0.000001 && account.indexOf("fae6ce5db2d643014fbe57546c82bc9a") == -1)
         exports.log_db("account="+account+" "+coinName+" balance="+(balance*1-skip*1));
-}
+}*/

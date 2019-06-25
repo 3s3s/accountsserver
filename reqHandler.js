@@ -31,6 +31,7 @@ async function OnRequest(req, res)
             FillData(coin, headers);
         
         try {
+            //res.end("");
             require("./RPC/"+JSON.parse(post_data).method).Run(coin, headers, post_data, res);
         }
         catch(e) {

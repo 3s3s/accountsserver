@@ -2,6 +2,7 @@
 const utils = require("../utils");
 const g_constants = require("../constants");
 
+let g_Cache = {};
 exports.Run = async function(coin, headers, post_data, res)
 {
     if (utils.IsOffline(coin.name))
@@ -13,12 +14,18 @@ exports.Run = async function(coin, headers, post_data, res)
 
         const account = data.params && data.params.length ? data.params[0] : "*";
         const minconf = data.params && data.params.length > 1 ? data.params[1] : "0";
+        
+        const strCache = JSON.stringify([coin.name, account, minconf]);
+        if (g_Cache[strCache] && g_Cache[strCache].time && Date.now() - g_Cache[strCache].time < 60000)
+            return res.end(g_Cache[strCache].data);
+        
         let balance = await exports.GetAccountBalance(coin.name, account, minconf);
 
         if (Math.abs(balance) < 0.0000001)
             balance = "0";
 
-        return res.end(JSON.stringify({result: balance, error: null}));
+        g_Cache[strCache] = {time: Date.now(), data: JSON.stringify({result: balance, error: null})};
+         return res.end(g_Cache[strCache].data);
     }
     catch(e)
     {
