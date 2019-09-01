@@ -209,7 +209,8 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
                 
             if (txs) exports.Offline(coin.name, false);
                 
-            if (!txs || !txs.length) return cancel(new Error("SaveLastTransactions: CANCEL coin daemon failed "+coin.name));
+            if (!txs) 
+                return cancel(new Error("SaveLastTransactions: CANCEL coin daemon failed "+coin.name));
                     
             console.log('FillLast save for '+coin.name+" count="+txs.length);
                 
