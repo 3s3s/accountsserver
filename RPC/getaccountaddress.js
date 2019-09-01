@@ -6,8 +6,8 @@ const getnewaddress = require("./getnewaddress");
 
 exports.Run = async function(coin, headers, post_data, res)
 {
-    if (utils.IsOffline(coin.name))
-        return res.end(JSON.stringify({error: 'fail', message: 'coin offline'}));
+//    if (utils.IsOffline(coin.name))
+//        return res.end(JSON.stringify({error: 'fail', message: 'coin offline'}));
 
     try
     {
