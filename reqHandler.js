@@ -68,31 +68,31 @@ function processPost(request, response)
 }
 
 
-async function FillData (coin, headers, last = 1000000)
+async function FillData (coin, headers)
 {
     isKnownCoin[coin.name] = true;
 
-    FillAll(coin, headers);
+    //FillAll(coin, headers);
     
-    FillLast(coin, headers);
+    FillLast(coin, headers, 10);
     
-    async function FillAll(coin, headers)
+    async function FillAll(coin, headers, count = 1000)
     {
         try {
-            await utils.SaveAllTransactions(coin, headers);
+            await utils.SaveAllTransactions(coin, headers, count);
         }
         catch(e) {
             console.log("catch error for "+coin.name + " " + (e.message || ""));
         }
         
         console.log('WAIT 120 sec for '+coin.name);
-        setTimeout(FillAll, 120000, coin, headers);
+        setTimeout(FillAll, 120000, coin, headers, 50);
     }
     
-    async function FillLast(coin, headers)
+    async function FillLast(coin, headers, count = 1000)
     {
         try {
-            await utils.SaveLastTransactions(coin, headers);
+            await utils.SaveLastTransactions(coin, headers, count);
         }
         catch(e) {
             console.log('FillLast catch error for '+coin.name+" "+(e.message || ""));
@@ -100,7 +100,7 @@ async function FillData (coin, headers, last = 1000000)
         }
         
         console.log('WAIT 60 sec for '+coin.name);    
-        setTimeout(FillLast, 60000, coin, headers);
+        setTimeout(FillLast, 60000, coin, headers, 10);
     }
 }
 

@@ -15,8 +15,10 @@ exports.Run = async function(coin, headers, post_data, res)
         const account = data.params && data.params.length ? data.params[0] : "*";
         const minconf = data.params && data.params.length > 1 ? data.params[1] : "0";
         
+        const disableCache = data.params && data.params.length > 2 ? data.params[2]*1 : 0;
+        
         const strCache = JSON.stringify([coin.name, account, minconf]);
-        if (g_Cache[strCache] && g_Cache[strCache].time && Date.now() - g_Cache[strCache].time < 60000)
+        if (disableCache == 0 && g_Cache[strCache] && g_Cache[strCache].time && Date.now() - g_Cache[strCache].time < 60000)
             return res.end(g_Cache[strCache].data);
         
         let balance = await exports.GetAccountBalance(coin.name, account, minconf);
