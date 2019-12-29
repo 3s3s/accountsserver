@@ -58,6 +58,9 @@ exports.Run = async function(coin, headers, post_data, res)
 exports.fromDB = function(coinName, account)
 {
     return new Promise((async ok => {
+        if (coinName == escape("US dollar"))
+            return ok(null);
+            
         const rows = await g_constants.dbTables["addresses"].Select2("*", "coin='"+coinName+"' AND account='"+escape(account)+"'");
         
         if (!rows || !rows.length)

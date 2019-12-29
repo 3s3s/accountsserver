@@ -200,18 +200,57 @@ exports.SaveAllTransactions = function(coin, headers)
     });    
 }
 
+let g_lastTXs = {};
 exports.SaveLastTransactions = function(coin, headers, count=1000)
 {
     return new Promise(async (ok, cancel) => {
         try
         {
+            console.log('SaveLastTransactions for '+coin.name);
             const txs = await listtransactions.queryDaemon(coin, headers, "*", count);
                 
             if (txs) exports.Offline(coin.name, false);
                 
             if (!txs) 
+            {
+                console.log('SaveLastTransactions cancel for '+coin.name);
                 return cancel(new Error("SaveLastTransactions: CANCEL coin daemon failed "+coin.name));
-                    
+            }
+                
+            if (g_lastTXs[coin.name])
+            {
+                let filteredTXs = [];
+                for (let i=0; i<txs.length; i++)
+                {
+                    const tx = txs[i];
+                    let bFound = false;
+                    for(let j=0; j<g_lastTXs[coin.name].length; j++)
+                    {
+                        if (tx.txid && tx.txid.length > 3 && tx.txid == g_lastTXs[coin.name][j].txid)
+                        {
+                            bFound = true;
+                            break;
+                        }
+                    }
+                    if (!bFound)
+                        filteredTXs.push(tx);
+                        
+                    await exports.Sleep(1);
+                }
+                txs = filteredTXs;
+            }
+ 
+            g_lastTXs[coin.name] = txs;
+                
+            /*if (txs.length && g_lastTXs[coin.name] == txs[0].txid && g_lastTXs[coin.name+"_"] == txs[txs.length-1].txid)
+                return ok();
+                
+            if (txs.length && txs[0].txid && txs[0].txid.length > 3 && txs[txs.length-1].txid && txs[txs.length-1].txid.length < 3)
+            {
+                g_lastTXs[coin.name] = txs[0].txid;
+                g_lastTXs[coin.name+"_"] == txs[txs.length-1].txid;
+            }*/
+                
             console.log('FillLast save for '+coin.name+" count="+txs.length);
                 
             await exports.SaveTransactions(coin, headers, txs);

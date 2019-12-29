@@ -31,11 +31,12 @@ async function OnRequest(req, res)
             FillData(coin, headers);
         
         try {
+            console.log("try "+coin.name+" "+JSON.parse(post_data).method)
             //res.end("");
             require("./RPC/"+JSON.parse(post_data).method).Run(coin, headers, post_data, res);
         }
         catch(e) {
-            //console.log(e.message);
+            console.log("catch: " + e.message);
             utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
                 //console.log(result.data);
                 res.end(result.data || "");
@@ -44,7 +45,7 @@ async function OnRequest(req, res)
         }
     }
     catch(e) {
-        res.end();
+        res.end("");
     }
 }
 
@@ -67,14 +68,13 @@ function processPost(request, response)
     });
 }
 
-
 async function FillData (coin, headers)
 {
     isKnownCoin[coin.name] = true;
 
     //FillAll(coin, headers);
     
-    FillLast(coin, headers, 10);
+    FillLast(coin, headers, 1000);
     
     async function FillAll(coin, headers, count = 1000)
     {
@@ -100,7 +100,7 @@ async function FillData (coin, headers)
         }
         
         console.log('WAIT 60 sec for '+coin.name);    
-        setTimeout(FillLast, 60000, coin, headers, 10);
+        setTimeout(FillLast, 60000, coin, headers, 1000);
     }
 }
 

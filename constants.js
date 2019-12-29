@@ -2,13 +2,13 @@
 
 const DOMAIN = 'localhost';
 
-exports.DEBUG_LOG = false;
+exports.DEBUG_LOG = true;
 
 exports.share = {
     my_port: 40745
 };
 
-const DATABASE_PATH = '/root/opentrade/accountsserver/database/sqlite_accounts.db';
+const DATABASE_PATH = '/home/accounts/opentrade/accountsserver/database/sqlite_accounts.db';
 exports.dbTables = [
    {
       'name' : 'KeyValue',
@@ -88,8 +88,8 @@ exports.SSL_options = {
 
 exports.IsAllowedAddress = function(addr)
 {
-//    if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf(PRIVATE ? PRIVATE.LocalIP : "127.0.0.1") < 0)
-//        return false;
+    //if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf("192.168.122.1") < 0)
+    //    return false;
 
     return true;
 }

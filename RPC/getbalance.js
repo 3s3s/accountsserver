@@ -8,6 +8,7 @@ exports.Run = async function(coin, headers, post_data, res)
     if (utils.IsOffline(coin.name))
         return res.end(JSON.stringify({error: 'fail', message: 'coin offline'}));
 
+    console.log(coin.name + "  getbalance 0")
     try
     {
         const data = JSON.parse(post_data);
@@ -21,16 +22,19 @@ exports.Run = async function(coin, headers, post_data, res)
         if (disableCache == 0 && g_Cache[strCache] && g_Cache[strCache].time && Date.now() - g_Cache[strCache].time < 60000)
             return res.end(g_Cache[strCache].data);
         
+        console.log(coin.name+ "  getbalance 1")
         let balance = await exports.GetAccountBalance(coin.name, account, minconf);
 
+        console.log(coin.name + "  getbalance 2: "+balance)
         if (Math.abs(balance) < 0.0000001)
             balance = "0";
 
         g_Cache[strCache] = {time: Date.now(), data: JSON.stringify({result: balance, error: null})};
-         return res.end(g_Cache[strCache].data);
+        return res.end(g_Cache[strCache].data);
     }
     catch(e)
     {
+        console.log(coin.name + "  getbalance error: "+e.message)
         utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
             //console.log(result.data);
             res.end(result.data || "");

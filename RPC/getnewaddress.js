@@ -14,9 +14,11 @@ exports.queryDaemon = function(coin, headers)
 {
     return new Promise(async ok => {
         try {
+            console.log("getnewaddress "+coin.name+"..."+coin.hostname+":"+coin.port)
             const strJSON = '{"jsonrpc": "1.0", "id":"curltest", "method": "getnewaddress", "params": [] }';
             const result = await utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, strJSON);
             
+            console.log("getnewaddress result: "+JSON.stringify(result));
             if (result.success == false)
                 return ok(null);
             
