@@ -6,8 +6,11 @@ const handler = require("../reqHandler");
 exports.Run = async function(coin, headers, post_data, res)
 {
     if (utils.IsOffline(coin.name))
+    {
+        console.log("listtransactions return coin is offline "+coin.name)
         return res.end(JSON.stringify({error: 'fail', message: 'coin offline'}));
-        
+    }
+    
     try
     {
         const data = JSON.parse(post_data);
@@ -16,12 +19,14 @@ exports.Run = async function(coin, headers, post_data, res)
         
         const rows = await g_constants.dbTables["listtransactions"].Select2("*", "coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
 
+        console.log("listtransactions "+coin.name+" ret = "+rows.length)    
         return res.end(JSON.stringify({result: rows, error: null}));
     }
     catch(e)
     {
+        console.log(coin.name + "  listtransactions error: "+e.message)
         utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
-            //console.log(result.data);
+            console.log(result.data);
             res.end(result.data || "");
         });
     }

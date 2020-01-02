@@ -207,7 +207,7 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
         try
         {
             console.log('SaveLastTransactions for '+coin.name);
-            const txs = await listtransactions.queryDaemon(coin, headers, "*", count);
+            let txs = await listtransactions.queryDaemon(coin, headers, "*", count);
                 
             if (txs) exports.Offline(coin.name, false);
                 
@@ -260,6 +260,7 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
             return ok();
         }
         catch(e) {
+            console.log('SaveLastTransactions cancel for '+coin.name+" FAILED: "+e.message)
             return cancel(e);
         }
     });
