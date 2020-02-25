@@ -22,9 +22,15 @@ exports.Run = async function(coin, headers, post_data, res)
         const balance1 = await getbalance.GetAccountBalance(coin.name, data.params[1]);
 
         if (1*balance0 - 1*data.params[2] < 0)
-            return res.end(JSON.stringify({error: {message: 'bad account balance: '+1*balance0} }));
+        {
+            console.log("move return false with message: "+'bad account ('+data.params[0]+') balance: '+1*balance0)
+            return res.end(JSON.stringify({error: {message: 'bad account ('+data.params[0]+') balance: '+1*balance0} }));
+        }
         if (1*balance1 + 1*data.params[2] < 0)
-            return res.end(JSON.stringify({error: {message: 'bad account balance: '+1*balance1} }));
+        {
+            console.log("move return false with message: "+'bad account ('+data.params[1]+') balance: '+1*balance1)
+            return res.end(JSON.stringify({error: {message: 'bad account ('+data.params[1]+') balance: '+1*balance1} }));
+        }
             
        // const balanceTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
        // if (balanceTo*1 > 0.01)
@@ -36,6 +42,7 @@ exports.Run = async function(coin, headers, post_data, res)
         const uid1 = utils.Hash(coin.name+data.params[0]+data.params[1]+coinTime+comment+"move"+data.params[2]);
         const uid2 = utils.Hash(coin.name+data.params[1]+data.params[0]+coinTime+comment+"move"+data.params[2]);
         
+        console.log("moving for coin="+coin.name+" amoun="+data.params[2])
         await g_constants.dbTables["listtransactions"].Insert(
             coin.name,
             data.params[0],

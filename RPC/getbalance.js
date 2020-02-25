@@ -25,7 +25,7 @@ exports.Run = async function(coin, headers, post_data, res)
         console.log(coin.name+ "  getbalance 1")
         let balance = await exports.GetAccountBalance(coin.name, account, minconf);
 
-        console.log(coin.name + "  getbalance 2: "+balance)
+        console.log(coin.name + "  getbalance 2: account="+account+"; balance="+balance)
         if (Math.abs(balance) < 0.0000001)
             balance = "0";
 
@@ -75,9 +75,12 @@ exports.GetAccountBalance = function (coinName, account, minconf = 0)
             return ok(ret);
         }
         
+        if (minconf == 0)
+            return ok(rows && rows.length ? (1*rows[0].balance >= 0 ? 1*rows[0].balance : 0) : 0);
+
 
         //return ok(rows && rows.length ? 1*rows[0].balance - 1*realSkip : 0);
-        return ok(rows && rows.length ? 1*rows[0].balance : 0);
+        //return ok(rows && rows.length ? 1*rows[0].balance : 0);
 
     });
 }
