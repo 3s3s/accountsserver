@@ -8,7 +8,7 @@ exports.handle = function(app)
 {
     app.post('/', OnRequest);
     
-//    g_constants.dbTables["listtransactions"].Update("amount=0", "1*time > 1556054591 AND category='move'");
+    //g_constants.dbTables["listtransactions"].Update("confirmations=10", "category='send' and confirmations=-1");
 };
 
 async function OnRequest(req, res)
@@ -75,6 +75,8 @@ async function FillData (coin, headers)
     //FillAll(coin, headers);
     
     FillLast(coin, headers, 1000);
+    
+//    await g_constants.dbTables["listtransactions"].delete("category='move' AND account='aca132b7fa0dc6de89e13fb0017089d0' AND coin<>'Marycoin'")
     
     async function FillAll(coin, headers, count = 1000)
     {

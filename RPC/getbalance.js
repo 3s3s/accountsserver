@@ -67,16 +67,12 @@ exports.GetAccountBalance = function (coinName, account, minconf = 0)
             const uSend = unconfirmedSend && unconfirmedSend.length ? unconfirmedSend[0].balance : 0;
             
             const ret = rows && rows.length ? 1*rows[0].balance + (1*moved+1*uSend-1*realSkip): 0;
-            if (coinName == "Marycoin" && account == "3b0a5347a1ad24e1a75fe7ce2c7906f4" && skip < 0)
-            {
-                let r = 0;
-            }
 
             return ok(ret);
         }
         
         if (minconf == 0)
-            return ok(rows && rows.length ? (1*rows[0].balance >= 0 ? 1*rows[0].balance : 0) : 0);
+            return ok(rows && rows.length ? 1*rows[0].balance : 0);
 
 
         //return ok(rows && rows.length ? 1*rows[0].balance - 1*realSkip : 0);

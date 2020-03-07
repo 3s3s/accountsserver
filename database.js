@@ -346,7 +346,7 @@ exports.Init = async function(callback)
             //g_db.run(query, function(err) {
             remoteRun(query, err => {
                 if (callback) setTimeout(callback, 1, err); //callback(err);
-                if (err) console.log("UPDATE error: " + err.message);
+                if (err) console.log("UPDATE error: " + (err.message ? err.message : JSON.stringify(err)));
             });
         }
         catch(e) {
@@ -419,7 +419,7 @@ exports.Init = async function(callback)
                 const name = this.name;
                 return new Promise((fulfilled, rejected) => {
                     Update(name, SET, WHERE, err => {
-                        if (err) return rejected( new Error(err.message || "Update error") );
+                        if (err) return rejected( new Error(err.message || JSON.stringify(err)) );
                         fulfilled(null);
                     });
                 });

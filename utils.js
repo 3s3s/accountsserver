@@ -12,9 +12,14 @@ const setaccount = require("./RPC/setaccount");
 
 
 const log_file_db = require("fs").createWriteStream(__dirname + '/debug_db.log', {flags : 'w'});
+const log_file2 = require("fs").createWriteStream(__dirname + '/debug2.log', {flags : 'w'});
 
 exports.log_db = function(d) {
     log_file_db.write(util.format(d) + '\n');
+}
+
+exports.log2 = function(d) {
+    log_file2.write(util.format(d) + '\n');
 }
 
 exports.Hash = function(str)
@@ -271,11 +276,13 @@ exports.SaveTransactions = function(coin, headers, txs)
     const coinName = coin.name;
     
     return new Promise(async (ok, cancel) => {
-        try {
             
-            let bFirstSkip = true;
-            for (let i=0; i<txs.length; i++)
-            {
+        let bFirstSkip = true;
+        //for (let i=txs.length-1; i>=0; i--)
+        for (let i=txs.length-1; i>=0; i--)
+        {
+            try {
+                exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (txs[i].comment)
                 {
                     try {
@@ -289,6 +296,8 @@ exports.SaveTransactions = function(coin, headers, txs)
                 const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
                         
                 const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
+                
+                //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions1 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (rows.length)
                 {
                     let account = rows[0].account == "%20" ? 
@@ -303,6 +312,7 @@ exports.SaveTransactions = function(coin, headers, txs)
                     {
                         const confirmations = escape(txs[i].confirmations) || 0;
                         
+                        console.log("try update confirmations "+coinName+"; uid='"+escape(uid)+"'"+"; account="+account)
                         await g_constants.dbTables["listtransactions"].Update(
                             "confirmations="+confirmations+", account='"+account+"'",
                             "uid='"+escape(uid)+"'"
@@ -313,6 +323,7 @@ exports.SaveTransactions = function(coin, headers, txs)
                     {
                         const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? escape(txs[i].otheraccount) : rows[0].otheraccount;
     
+                        console.log("try update block "+coinName+"; uid='"+escape(uid)+"'"+"; account="+escape(account))
                         await g_constants.dbTables["listtransactions"].Update(
                             "blockhash='"+escape(txs[i].blockhash)+"', blockindex="+escape(txs[i].blockindex)+", blocktime="+escape(txs[i].blocktime)+
                             ", account='"+escape(account)+"' "+ ", otheraccount='"+otheraccount+"' ",
@@ -328,11 +339,12 @@ exports.SaveTransactions = function(coin, headers, txs)
                     //LogBalance(coinName, txs[i].account);
                     continue;
                 }
-                
-                //console.log('SaveTransactions2 coin='+coinName+', account='+txs[i].account);
-                
+
+                //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions2 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 try {
                     const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address);
+                    
+                    exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + ' SaveTransactions (insert) coin='+coinName+', account='+account+"; amount="+txs[i].amount+"; txid="+txs[i].txid)
                     
                     await g_constants.dbTables["listtransactions"].Insert(
                         coinName,
@@ -359,13 +371,13 @@ exports.SaveTransactions = function(coin, headers, txs)
                     );
                 }
                 catch(err) {
+                    exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions (catch error) "+coinName+"; error="+err.message)
                     console.log(err.message+"(SaveTransactions2 coin="+coinName+", account="+txs[i].account+")");
                 }
             }
-
-        }
-        catch(e) {
-            
+            catch(e) {
+                exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions (catch error2) "+coinName+"; error="+e.message)
+            }
         }
 
         ok();
