@@ -88,8 +88,8 @@ exports.SSL_options = {
 
 exports.IsAllowedAddress = function(addr)
 {
-    //if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf("192.168.122.1") < 0)
-    //    return false;
+    if (addr.indexOf("127.0.0.1") < 0 && addr.indexOf("192.168.122.1") < 0)
+        return false;
 
     return true;
 }

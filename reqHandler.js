@@ -8,7 +8,7 @@ exports.handle = function(app)
 {
     app.post('/', OnRequest);
     
-    //g_constants.dbTables["listtransactions"].Update("confirmations=10", "category='send' and confirmations=-1");
+    //g_constants.dbTables["listtransactions"].Update("fee='-0.73490608' ", "account='cb7545a6cba815bd9f042b2669a1354e' and amount='-560.04381637' and coin='Marycoin'");
 };
 
 async function OnRequest(req, res)
