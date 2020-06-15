@@ -7,6 +7,8 @@ const WebSocket = require('ws');
 let g_wsPool = [];
 let g_mapIdToCallback = {};
 
+let g_LastNewSocket = 0;
+
 function InitSocketPool()
 {
     if (g_wsPool.length) return;
@@ -18,19 +20,21 @@ function InitSocketPool()
             
         setInterval(DeleteTimeouts, 5000);
         setInterval(Log, 60000);
+        
+        g_LastNewSocket = Date.now();
         return ok();
     })
 
     function Log()
     {
-        //g_utils.log_db("Queue="+Object.keys(g_mapIdToCallback).length);
+        g_utils.log_db("Queue="+Object.keys(g_mapIdToCallback).length);
     }
     function DeleteTimeouts()
     {
         let keys = [];
         for (let key in g_mapIdToCallback)
         {
-            if (g_mapIdToCallback[key].time && Date.now()-g_mapIdToCallback[key].time > 30000)
+            if (g_mapIdToCallback[key].time && Date.now()-g_mapIdToCallback[key].time > 20000)
             {
                 const callback = g_mapIdToCallback[key].callback;
                 const cancel = g_mapIdToCallback[key].cancel;
@@ -50,7 +54,16 @@ function InitSocketPool()
     function NewSocket(index)
     {
         return new Promise((ok, cancel) => {
-            //g_utils.log_db("new socket index="+index);
+            if (Date.now() - g_LastNewSocket < 1000)
+            {
+                setTimeout(NewSocket, 1000, index);
+                return ok();
+            }
+            
+            if (g_LastNewSocket > 0)    
+                g_LastNewSocket = Date.now();
+                
+            g_utils.log_db("new socket index="+index);
             
             const client = new WebSocket('ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
             client['index'] = index;
@@ -67,20 +80,32 @@ function InitSocketPool()
             });
             client.on('close', async () =>  
             {
-                //g_utils.log_db("close socket index="+index);
-                setTimeout(NewSocket, 1, client.index);
+                g_utils.log_db("close socket index="+index);
+                setTimeout(NewSocket, 1000, client.index);
                 clearTimeout(client.pingTimeout);
+                
+                client.terminate();
                 g_wsPool[client.index] = null;
              
                 return ok();
-            });     
+            }); 
+            client.on('error', err => {
+                g_utils.log_db("close socket (error="+JSON.stringify(err)+") index="+index);
+                setTimeout(NewSocket, 1, client.index);
+                clearTimeout(client.pingTimeout);
+                
+                client.terminate();
+                g_wsPool[client.index] = null;
+             
+                return ok();
+            });
             client.on('message', data => {
                 heartbeat(client);
                 if (!data) return;
                 setTimeout(ProcessMessage, 1, data);
             });
         })
-    
+        
         function heartbeat(client) {
           clearTimeout(client.pingTimeout);
             
@@ -90,25 +115,36 @@ function InitSocketPool()
           client.pingTimeout = setTimeout(() => {
             client.terminate();
             g_wsPool[client.index] = null;
-          }, 30000);
+          }, 40000);
         }
         
         function ProcessMessage(data)
         {
+            //console.log("try ProcessMessage")
             try {
+                DeleteTimeouts();
+                
                 const message = JSON.parse(data);
         
+                //console.log(g_mapIdToCallback)
+                
                 if (!message.id) return;
-                if (!g_mapIdToCallback[message.id] || !g_mapIdToCallback[message.id].callback) return;
+                if (!g_mapIdToCallback[message.id]) return;
+                if (!g_mapIdToCallback[message.id].callback) 
+                {
+                    delete g_mapIdToCallback[message.id];
+                    return;
+                }
                         
                 const callback = g_mapIdToCallback[message.id].callback;
         
+                console.log("got callback")
                 setTimeout(callback, 1, message.err, message.rows || []);
         
                 delete g_mapIdToCallback[message.id];
             }
             catch(e) {
-                console.log(e.message);
+                g_utils.log_db("catch error (2) = "+e.message);
             }
         }
     }
@@ -121,14 +157,20 @@ async function GetSocketFromPool(callback)
     const socket = g_wsPool[index];
     
     if (socket && (socket.readyState === WebSocket.OPEN))
+    {
         return setTimeout(callback, 1, socket);
- 
-    //g_utils.log_db("index="+index+" is not open");
+    }
 
-    setTimeout(GetSocketFromPool, 1, callback);
+    g_utils.log_db("index="+index+" is not open");
 
-    function getRandomInt(min = 0, max = 10) {
-      return Math.floor(Math.random() * (max - min)) + min;
+    setTimeout(GetSocketFromPool, 1000, callback);
+
+    function getRandomInt(min = 0, max = 10) 
+    {
+        //if (g_LastActiveIndex != -1)
+        //    return g_LastActiveIndex;
+        
+        return Math.floor(Math.random() * (max - min)) + min;
     }
 }
 
@@ -138,6 +180,7 @@ async function remoteInit()
 
     return new Promise((ok, cancel) => {
         const id = Math.random();
+        g_mapIdToCallback[id] = {time: Date.now(), callback: InitFunctions};
         const strJSON = JSON.stringify({id: id, q: JSON.stringify(
             {
                 dbPath: g_constants.dbName, 
@@ -155,7 +198,11 @@ async function remoteInit()
 
 function remoteRun(SQL, callback)
 {
-    const id = Math.random();
+    //console.log(SQL)
+    if (Object.keys(g_mapIdToCallback).length > 50)
+        return setTimeout(remoteRun, 1000, SQL, callback);
+        
+    const id = 1+Math.random();
     g_mapIdToCallback[id] = {time: Date.now(), callback: callback};
         
     const strJSON = JSON.stringify({id: id, q: JSON.stringify(
@@ -169,39 +216,34 @@ function remoteRun(SQL, callback)
     GetSocketFromPool(socket => {
         try { socket.send(strJSON); } 
         catch(e){
+            g_utils.log_db("catch error (1) = "+e.message);
             socket.terminate(); 
             if (g_mapIdToCallback[id]) delete g_mapIdToCallback[id];
-            setTimeout(remoteRun, 1, SQL, callback);
+            setTimeout(remoteRun, 100, SQL, callback);
         }
     });
 }
 
-
-function RunDBTransaction()
-{
-    exports.RunMemQueries(function(err) {});
-}
-
+let globalCallback = null;
 exports.Init = async function(callback)
 {
-    const globalCallback = callback;
-    
+    globalCallback = callback;
     await remoteInit();
+}
+
+function InitFunctions()
+{
+    //const globalCallback = callback;
+    
+    //await remoteInit();
     
     //g_db = new sqlite3.Database(g_constants.dbName);
     
-    //remoteRun('DROP TABLE all_addresses');
-    //remoteRun('DROP TABLE addresses');
+    //remoteRun('DROP TABLE posts');
     //g_db.run('ALTER TABLE orders ADD COLUMN uuid TEXT UNIQUE')
-    
-    RunDBTransaction();
-    setInterval(RunDBTransaction, 5000);
     
     function CreateIndex(indexObject)
     {
-        /*remoteRun('DROP TABLE all_addresses', () => {
-            remoteRun('DROP TABLE addresses');
-        });*/
         //g_db.run("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", function(err){
         remoteRun("CREATE INDEX IF NOT EXISTS "+indexObject.name+" ON "+indexObject.table+" ("+indexObject.fields+")", err => {
             if (err) throw new Error(err.message);
@@ -221,9 +263,9 @@ exports.Init = async function(callback)
         if (dbTables[nIndex].commands) cols += ", "+dbTables[nIndex].commands;
     
          cols += ')';
-         
+        
+        //console.log('CREATE TABLE IF NOT EXISTS ' + dbTables[nIndex].name + cols) 
          //g_db.run('CREATE TABLE IF NOT EXISTS ' + dbTables[nIndex].name + cols, function(err) {
-         console.log('CREATE TABLE IF NOT EXISTS ' + dbTables[nIndex].name + cols);
          remoteRun('CREATE TABLE IF NOT EXISTS ' + dbTables[nIndex].name + cols, err => {
             if (!err)
                 return cbError(false);
@@ -260,7 +302,7 @@ exports.Init = async function(callback)
     function Insert2(tableObject, values)
     {
         InsertCommon(tableObject, values, true);
-   }
+    }
     function InsertCommon(tableObject, values, bToMemory)
     {
         try {
@@ -282,22 +324,22 @@ exports.Init = async function(callback)
             vals += ')';
             
             console.log('INSERT INTO ' + tableObject.name + ' VALUES ' + vals);
-            if (bToMemory)
+            /*if (bToMemory)
             {
                 exports.addMemQuery('INSERT INTO ' + tableObject.name + ' VALUES ' + vals);
                 setTimeout(callbackERR, 1, false);//callbackERR(false);
             }
             else
-            {
+            {*/
                 //g_db.run('INSERT INTO ' + tableObject.name + ' VALUES ' + vals, err => {
-                remoteRun('INSERT INTO ' + tableObject.name + ' VALUES ' + vals, err => {
+                remoteRun('REPLACE INTO ' + tableObject.name + ' VALUES ' + vals, err => {
                     if (callbackERR) setTimeout(callbackERR, 1, err); //callbackERR(err);
                     if (err) 
                         console.log('INSERT error: ' + err.message);
                     else
                         console.log('INSERT success');
                 });
-            }
+            //}
         }
         catch(e) {
             console.log(e.message);
@@ -319,7 +361,13 @@ exports.Init = async function(callback)
             //g_db.all(query, param, (err, rows) => {
             remoteRun(query, (err, rows) => {
                 if (err) 
-                    console.log("SELECT ERROR: query="+query+" message=" + (err.message || err));
+                {
+                    try {
+                        console.log("SELECT ERROR: query="+query+" message=" + JSON.stringify(err));
+                    }catch(e) {
+                        console.log(e.message)
+                    }
+                }
                 
                 query = null;
                 if (callback) setTimeout(callback, 1, err, rows);
@@ -345,8 +393,9 @@ exports.Init = async function(callback)
             //console.log(query);   
             //g_db.run(query, function(err) {
             remoteRun(query, err => {
+                //console.log(err)
                 if (callback) setTimeout(callback, 1, err); //callback(err);
-                if (err) console.log("UPDATE error: " + (err.message ? err.message : JSON.stringify(err)));
+                if (err) console.log("UPDATE error: " + err.message);
             });
         }
         catch(e) {
@@ -375,7 +424,7 @@ exports.Init = async function(callback)
                 });
             };
             g_constants.dbTables['KeyValue']['set'] = function(key, value, callback) {
-                this.get(key, function(error, rows) {
+                this.get(key, (error, rows) => {
                     if (error || (!rows.length))
                         g_constants.dbTables['KeyValue'].insert(key, value, callback);
                     if (!error && rows.length)
@@ -387,7 +436,7 @@ exports.Init = async function(callback)
                 globalCallback();
                 
         }, (err, params, cbError) => {
-            if (err) throw new Error('unexpected init db error 1');
+            if (err) throw new Error('unexpected init db error 1 = '+JSON.stringify(err));
             
             const i = params.nIndex;
             
@@ -419,7 +468,7 @@ exports.Init = async function(callback)
                 const name = this.name;
                 return new Promise((fulfilled, rejected) => {
                     Update(name, SET, WHERE, err => {
-                        if (err) return rejected( new Error(err.message || JSON.stringify(err)) );
+                        if (err) return rejected( new Error(err.message || "Update error") );
                         fulfilled(null);
                     });
                 });
@@ -442,9 +491,10 @@ exports.Init = async function(callback)
             };
             g_constants.dbTables[i]['Select2'] = function(cols, where = "", other = "", param) {
                 const name = this.name;
-                return new Promise((fulfilled, rejected) => {
+                return new Promise(fulfilled => {
                     SelectAll(cols, name, where, other, (err, rows) => {
                         if (err || !rows) return fulfilled([]);
+                        console.log("select return no error");
                         fulfilled(rows);
                     }, param);
                 });
@@ -455,146 +505,24 @@ exports.Init = async function(callback)
     //});
 };
 
-exports.RunTransactions = function()
-{
-    Begin();
-    
-    function Begin()
-    {
-        //g_db.run('BEGIN TRANSACTION', function(err){
-        remoteRun('BEGIN TRANSACTION', err => {
-            if (!err)
-                setTimeout(End, 10000);
-            else
-                setTimeout(Begin, 2000);
-        });
-    }
-    
-    function End()
-    {
-        //g_db.run('END TRANSACTION', function(err){
-        remoteRun('END TRANSACTION', err => {
-            if (!err)
-            {
-               // g_db.run("VACUUM");
-                setTimeout(Begin, 1);
-            }
-            else
-                setTimeout(End, 2000);
-        });
-    }
-};
-
-let txLog = "";
-let g_gotTransaction = false;
-exports.BeginTransaction = function (log, callback, count)
-{
-    const counter = count || 0;
-    if (g_gotTransaction && counter <= 3)
-        return setTimeout(exports.BeginTransaction, 5000, log, callback, counter+1);
-    
-    if (g_gotTransaction && counter > 3)
-        return callback({message: 'Transactions busy '+txLog});
-
-    g_gotTransaction = true;   
-    txLog = log;
-    //g_db.run('BEGIN TRANSACTION', function(err){
-    remoteRun('BEGIN TRANSACTION', err => {
-        if (err) g_gotTransaction = false;
-        //if (err) throw ("BeginTransaction error: " + err.message);
-        if (callback) callback(err);
-    });
-};
-
-exports.EndTransaction = function(callback)
-{
-    //g_db.run('END TRANSACTION', err => {
-    remoteRun('END TRANSACTION', err => {
-        if (!err) g_gotTransaction = false;
-        //if (err) throw ("EndTransaction error: " + err.message);
-        if (callback) callback(err);
-     });
-};
-
 exports.RunQuery = function(SQL, callback)
 {
    // g_db.run(SQL, callback);
     remoteRun(SQL, callback);
 }
-exports.SELECT = function(query, callback, param)
+exports.SELECT = function(query, callback)
 {
-    //g_db.all(query, param, (err, rows) => {
-    remoteRun(query, (err, rows) => {
-        if (err) console.log("SELECT ERROR: query="+query+" message=" + err.message);
-                
-        query = null;
-        if (callback) setTimeout(callback, 1, err, rows);
-    });        
+    return new Promise(ok => {
+        remoteRun(query, (err, rows) => {
+            if (err) console.log("SELECT ERROR: query="+query+" message=" + err.message);
+                    
+            query = null;
+            if (callback) setTimeout(callback, 1, err, rows);
+            else ok({err: err, rows: rows});
+        });   
+        
+    })
 }
-
-exports.run = function(log, query, callback, count)
-{
-    const counter = count || 0;
-    if (g_gotTransaction && counter <= 3)
-        return setTimeout(exports.BeginTransaction, 5000, log, callback, counter+1);
-    
-    if (g_gotTransaction && counter > 3)
-        return callback({message: 'Transactions busy '+txLog});
-
-    g_gotTransaction = true;   
-    txLog = log;
-
-    //_db.run(query, err => {
-    remoteRun(query, err => {
-        if (err) return exports.RollbackTransaction(callback);
-
-        g_gotTransaction = false;
-
-        if (callback) callback(err);
-    });
-}
-
-exports.RollbackTransaction = function(callback)
-{
-    //g_db.run('ROLLBACK', err => {
-    remoteRun('ROLLBACK', err => {
-        g_gotTransaction = false;
-        //if (err) throw ("EndTransaction error: " + err.message);
-        if (callback) callback(err);
-     });
-};
-
-var g_memQueries = [];
-exports.addMemQuery = function(strQuery) 
-{
-    if (!strQuery || !strQuery.length) throw new Error('invlid SQL query');
-    
-    g_memQueries.push(strQuery);
-};
-exports.RunMemQueries = function(callback)
-{
-    if (!g_memQueries.length)
-    {
-        callback(false);
-        return;
-    }
-    exports.BeginTransaction('RunMemQueries', () => {
-        g_memQueries.forEach((val, index, array) => {
-            console.log('run from memory: '+ val);
-            //g_db.run(val, error => {
-            remoteRun(val, error => {
-                 if (error) //throw 'RunMemQueries unexpected error for query='+val;
-                 {
-                     console.log('ERROR for RUN SQL: '+ val + '\nmessage:'+(error.message || ''));
-                 }
-             });
-        });
-        g_memQueries = [];
-        exports.EndTransaction(callback);
-    });
-    
-}
-
 
 
 
