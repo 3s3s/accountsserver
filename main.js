@@ -7,14 +7,16 @@ const util = require('util');
 const express = require('express');
 const bodyParser = require('body-parser');
 
-const log_file = require("fs").createWriteStream(__dirname + '/debug.log', {flags : 'w'});
+const fs = require('fs')
+
+const log_file = fs.openSync(__dirname + '/debug.log', 'w');
 const log_stdout = process.stdout;
 
 console.log = function(d, userID) { 
-    if (!g_constants.DEBUG_LOG)
-        return;
+  if (!g_constants.DEBUG_LOG)
+    return;
 
-  log_file.write(util.format(d) + '\n');
+  fs.writeSync(log_file, (new Date()).toUTCString()+"  "+util.format(d) + '\n');
   log_stdout.write(util.format(d) + '\n');
   
   if (userID)

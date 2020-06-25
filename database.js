@@ -54,6 +54,11 @@ function InitSocketPool()
     function NewSocket(index)
     {
         return new Promise((ok, cancel) => {
+            if (g_wsPool[index])
+            {
+                g_utils.log_db("return because duplicate index="+index)
+                return ok();
+            }
             if (Date.now() - g_LastNewSocket < 1000)
             {
                 setTimeout(NewSocket, 1000, index);
@@ -63,7 +68,7 @@ function InitSocketPool()
             if (g_LastNewSocket > 0)    
                 g_LastNewSocket = Date.now();
                 
-            g_utils.log_db("new socket index="+index);
+            g_utils.log_db("new socket index="+index+'; ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
             
             const client = new WebSocket('ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
             client['index'] = index;
@@ -90,7 +95,7 @@ function InitSocketPool()
                 return ok();
             }); 
             client.on('error', err => {
-                g_utils.log_db("close socket (error="+JSON.stringify(err)+") index="+index);
+                g_utils.log_db("close socket (error) index="+index);
                 setTimeout(NewSocket, 1, client.index);
                 clearTimeout(client.pingTimeout);
                 
@@ -130,16 +135,13 @@ function InitSocketPool()
                 
                 if (!message.id) return;
                 if (!g_mapIdToCallback[message.id]) return;
-                if (!g_mapIdToCallback[message.id].callback) 
-                {
-                    delete g_mapIdToCallback[message.id];
-                    return;
-                }
-                        
+                
                 const callback = g_mapIdToCallback[message.id].callback;
-        
+                if (!callback) 
+                    return (delete g_mapIdToCallback[message.id]);
+
                 console.log("got callback")
-                setTimeout(callback, 1, message.err, message.rows || []);
+                callback(message.err, message.rows || []);
         
                 delete g_mapIdToCallback[message.id];
             }
@@ -214,6 +216,7 @@ function remoteRun(SQL, callback)
     )});
         
     GetSocketFromPool(socket => {
+        g_utils.log_db(strJSON)
         try { socket.send(strJSON); } 
         catch(e){
             g_utils.log_db("catch error (1) = "+e.message);
@@ -227,12 +230,16 @@ function remoteRun(SQL, callback)
 let globalCallback = null;
 exports.Init = async function(callback)
 {
+    g_utils.log_db("Init 0");
     globalCallback = callback;
     await remoteInit();
+    
+    g_utils.log_db("Init 1");
 }
 
 function InitFunctions()
 {
+    g_utils.log_db("InitFunctions");
     //const globalCallback = callback;
     
     //await remoteInit();
@@ -436,7 +443,7 @@ function InitFunctions()
                 globalCallback();
                 
         }, (err, params, cbError) => {
-            if (err) throw new Error('unexpected init db error 1 = '+JSON.stringify(err));
+            if (err) throw new Error('unexpected init db error 1');
             
             const i = params.nIndex;
             

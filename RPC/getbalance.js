@@ -36,7 +36,7 @@ exports.Run = async function(coin, headers, post_data, res)
     {
         console.log(coin.name + "  getbalance error: "+e.message)
         utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
-            //console.log(result.data);
+            console.log(result.data || "");
             res.end(result.data || "");
         });
     }
