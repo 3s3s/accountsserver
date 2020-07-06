@@ -318,6 +318,9 @@ exports.SaveTransactions = function(coin, headers, txs)
                             "uid='"+escape(uid)+"'"
                         );
                     }
+                    if (!txs[i].blockindex || !txs[i].blocktime || !txs[i].blockhash )
+                        continue;
+                        
                     if ((rows[0].blocktime == -1 && txs[i].blocktime && txs[i].blocktime != -1) ||
                         (rows[0].account == "%20"))// && txs[i].account && txs[i].account.length))
                     {

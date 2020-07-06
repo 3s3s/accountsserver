@@ -216,7 +216,7 @@ function remoteRun(SQL, callback)
     )});
         
     GetSocketFromPool(socket => {
-        g_utils.log_db(strJSON)
+        //g_utils.log_db(strJSON)
         try { socket.send(strJSON); } 
         catch(e){
             g_utils.log_db("catch error (1) = "+e.message);

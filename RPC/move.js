@@ -23,13 +23,13 @@ exports.Run = async function(coin, headers, post_data, res)
 
         if (1*balance0 - 1*data.params[2] < 0)
         {
-            console.log("move return false with message: "+'bad account ('+data.params[0]+') balance: '+1*balance0)
-            return res.end(JSON.stringify({error: {message: 'bad account ('+data.params[0]+') balance: '+1*balance0} }));
+            console.log("move return false with message: "+'(1) bad account ('+data.params[0]+') balance: '+1*balance0)
+            return res.end(JSON.stringify({error: {message: '(1) bad account ('+data.params[0]+') balance: '+1*balance0} }));
         }
         if (1*balance1 + 1*data.params[2] < 0)
         {
-            console.log("move return false with message: "+'bad account ('+data.params[1]+') balance: '+1*balance1)
-            return res.end(JSON.stringify({error: {message: 'bad account ('+data.params[1]+') balance: '+1*balance1} }));
+            console.log("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1)
+            return res.end(JSON.stringify({error: {message: '(2) bad account ('+data.params[1]+') balance: '+1*balance1} }));
         }
             
        // const balanceTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);

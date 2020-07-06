@@ -2,46 +2,55 @@
 const utils = require("../utils");
 const g_constants = require("../constants");
 
-let g_Cache = {};
 exports.Run = async function(coin, headers, post_data, res)
 {
     if (utils.IsOffline(coin.name))
         return res.end(JSON.stringify({error: 'fail', message: 'coin offline'}));
 
-    console.log(coin.name + "  getbalance 0")
+    console.log(coin.name + "  fixbalance 0")
     try
     {
         const data = JSON.parse(post_data);
 
         const account = data.params && data.params.length ? data.params[0] : "*";
-        const minconf = data.params && data.params.length > 1 ? data.params[1] : "0";
-        
-        const disableCache = data.params && data.params.length > 2 ? data.params[2]*1 : 0;
-        
-        const strCache = JSON.stringify([coin.name, account, minconf]);
-        if (disableCache == 0 && g_Cache[strCache] && g_Cache[strCache].time && Date.now() - g_Cache[strCache].time < 60000)
-            return res.end(g_Cache[strCache].data);
-        
-        console.log(coin.name+ "  getbalance 1")
-        
-        //utils.log2("getbalance "+coin.name+" "+account+" "+minconf)
-        
-        let balance = await exports.GetAccountBalance(coin.name, account, minconf);
 
-        console.log(coin.name + "  getbalance 2: account="+account+"; balance="+balance)
-        if (Math.abs(balance) < 0.0000001)
-            balance = "0";
+        let balance = await exports.GetAccountBalance(coin.name, account, 0);
 
-        g_Cache[strCache] = {time: Date.now(), data: JSON.stringify({result: balance, error: null})};
-        return res.end(g_Cache[strCache].data);
+        console.log(coin.name + "  fixbalance 2: account="+account+"; balance="+balance)
+        if (balance > 0.0)
+            return res.end(JSON.stringify({result: "no need fix balance "+balance, error: null}));
+
+        await g_constants.dbTables["listtransactions"].Insert(
+            coin.name,
+            account,
+            " ",
+            " ",
+            -1*balance,
+            " ",
+            "-1",
+            "0",
+            "10",
+            " ",
+            " ",
+            "1",
+            "1",
+            " ",
+            Date.now(),
+            Date.now(),
+            "admin fix balance",
+            " ",
+            " ",
+            " ",
+            utils.Hash(Date.now()+"-"+Math.random())
+        );
+        
+        balance = await exports.GetAccountBalance(coin.name, account, 0);
+        //g_Cache[strCache] = {time: Date.now(), data: JSON.stringify({result: balance, error: null})};
+        return res.end(JSON.stringify({result: "new balance = "+balance, error: null}));
     }
     catch(e)
     {
-        console.log(coin.name + "  getbalance error: "+e.message)
-        utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
-            console.log(result.data || "");
-            res.end(result.data || "");
-        });
+        return res.end(JSON.stringify({result: e.message, error: false}));
     }
 
 }
