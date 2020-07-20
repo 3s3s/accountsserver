@@ -9,6 +9,7 @@ exports.handle = function(app)
     app.post('/', OnRequest);
     
     //g_constants.dbTables["listtransactions"].Update("fee='-0.73490608' ", "account='cb7545a6cba815bd9f042b2669a1354e' and amount='-560.04381637' and coin='Marycoin'");
+//    g_constants.dbTables["listtransactions"].delete("coin='Litecoin' AND comment='"+escape("admin fix balance")+"'");
 };
 
 async function OnRequest(req, res)

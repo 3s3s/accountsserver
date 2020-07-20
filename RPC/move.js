@@ -3,14 +3,20 @@ const g_constants = require("../constants");
 const utils = require("../utils");
 const getbalance = require("./getbalance");
 
+let g_Lock = {};
 exports.Run = async function(coin, headers, post_data, res)
 {
+    utils.log2("move start")
     if (utils.IsOffline(coin.name))
         return res.end(JSON.stringify({error: {message: 'coin is offline'}}));
-        
+    
+    let balanceFinalFrom = "";   
+    let balanceFinalTo = "";   
     try
     {
         const data = JSON.parse(post_data);
+        
+        utils.log2("move data.params="+JSON.stringify(data.params))
         
         if (!data.params || data.params.length < 3 || 1*data.params[2] < 0)
             return res.end(JSON.stringify({error: {message: 'bad params'} }));
@@ -18,20 +24,30 @@ exports.Run = async function(coin, headers, post_data, res)
     //if (coin.name != "Marycoin" && coin.name != "Dogecoin")// ||  (data.params[0] != "3b0a5347a1ad24e1a75fe7ce2c7906f4" && data.params[1] != "3b0a5347a1ad24e1a75fe7ce2c7906f4"))
     //    return res.end(JSON.stringify({error: {message: 'coin is offline'}}));
         
+        const lock = utils.Hash(JSON.stringify(data.params));
+        if (g_Lock[lock])
+            return res.end(JSON.stringify({error: {message: 'moving locked'} }))
+            
+        utils.log2("move step 1")
+        g_Lock[lock] = true;
+        
         const balance0 = await getbalance.GetAccountBalance(coin.name, data.params[0]);
         const balance1 = await getbalance.GetAccountBalance(coin.name, data.params[1]);
 
         if (1*balance0 - 1*data.params[2] < 0)
         {
-            console.log("move return false with message: "+'(1) bad account ('+data.params[0]+') balance: '+1*balance0)
-            return res.end(JSON.stringify({error: {message: '(1) bad account ('+data.params[0]+') balance: '+1*balance0} }));
+            data.params[2] = balance0;
+            //console.log("move return false with message: "+'(1) bad account ('+data.params[0]+') balance: '+1*balance0+"; data.params[2]="+data.params[2]*1)
+            //return res.end(JSON.stringify({error: {message: '(1) bad account ('+data.params[0]+') balance: '+1*balance0+"; data.params[2]="+data.params[2]*1} }));
         }
         if (1*balance1 + 1*data.params[2] < 0)
         {
-            console.log("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1)
-            return res.end(JSON.stringify({error: {message: '(2) bad account ('+data.params[1]+') balance: '+1*balance1} }));
+            if (g_Lock[lock]) delete g_Lock[lock];
+            console.log("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1)
+            return res.end(JSON.stringify({error: {message: '(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1} }));
         }
             
+        utils.log2("move step 2")
        // const balanceTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
        // if (balanceTo*1 > 0.01)
         //    return res.end(JSON.stringify({error: 'fail', message: 'bad account balance: '+1*balanceTo}));
@@ -67,6 +83,7 @@ exports.Run = async function(coin, headers, post_data, res)
             uid1
         );
         
+        utils.log2("move step 3")
         await g_constants.dbTables["listtransactions"].Insert(
             coin.name,
             data.params[1],
@@ -90,10 +107,19 @@ exports.Run = async function(coin, headers, post_data, res)
             " ",
             uid2
         );
+        
+        balanceFinalFrom = await getbalance.GetAccountBalance(coin.name, data.params[0]);
+        balanceFinalTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
+        
+        if (g_Lock[lock]) delete g_Lock[lock];
+        
+        utils.log2("move step 4")
     }
     catch(e)
     {
-        utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, async result => {
+        utils.log2("move catch error = "+e.message)
+        return res.end(JSON.stringify({error: {message: 'move cath error: '+e.message} }))
+        /*utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, async result => {
             console.log(result.data);
             
             if (result.success == false)
@@ -102,8 +128,8 @@ exports.Run = async function(coin, headers, post_data, res)
             await utils.SaveLastTransactions(coin, headers, 5);
             
             res.end(result.data || "");
-        });
+        });*/
     }
-    return res.end(JSON.stringify({result: true, error: null}));
+    return res.end(JSON.stringify({result: true, error: null, message: {balanceFinalFrom: balanceFinalFrom, balanceFinalTo: balanceFinalTo}}));
 }
 
