@@ -34,13 +34,13 @@ exports.Run = async function(coin, headers, post_data, res)
         const balance0 = await getbalance.GetAccountBalance(coin.name, data.params[0]);
         const balance1 = await getbalance.GetAccountBalance(coin.name, data.params[1]);
 
-        if (1*balance0 - 1*data.params[2] < 0)
+        if (1*balance0 - 1*data.params[2] < 0 && Math.abs(1*balance0 - 1*data.params[2]) > 0.00001)
         {
             data.params[2] = balance0;
             //console.log("move return false with message: "+'(1) bad account ('+data.params[0]+') balance: '+1*balance0+"; data.params[2]="+data.params[2]*1)
             //return res.end(JSON.stringify({error: {message: '(1) bad account ('+data.params[0]+') balance: '+1*balance0+"; data.params[2]="+data.params[2]*1} }));
         }
-        if (1*balance1 + 1*data.params[2] < 0)
+        if (1*balance1 + 1*data.params[2] < 0 && Math.abs(1*balance1 + 1*data.params[2]) > 0.00001)
         {
             if (g_Lock[lock]) delete g_Lock[lock];
             console.log("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1)

@@ -24,25 +24,12 @@ exports.Run = async function(coin, headers, post_data, res)
         
         if (newAddress)
         {
-            await setaccount.toDB(escape(unescape(coin.name)), account, newAddress, Date.now());
+            await setaccount.toDB(coin.name, account, newAddress, Date.now());
             return res.end(newAddress);
         }
             
         return res.end("");
 
-        /*utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, async result => {
-            console.log(result.data);
-            
-            try {
-                const ret = JSON.parse(result.data);
-                
-                if (!ret.error)
-                    await setaccount.toDB(coin.name, account, ret.result, Date.now());
-            }
-            catch(e) {}
-
-            res.end(result.data || "");
-        });*/
     }
     catch(e)
     {
@@ -61,7 +48,7 @@ exports.fromDB = function(coinName, account)
         if (coinName == escape("US dollar"))
             return ok(null);
             
-        const rows = await g_constants.dbTables["addresses"].Select2("*", "coin='"+coinName+"' AND account='"+escape(account)+"'");
+        const rows = await g_constants.dbTables["addresses"].Select2("*", "coin='"+escape(coinName)+"' AND account='"+escape(account)+"'");
         
         if (!rows || !rows.length)
             return ok(null);

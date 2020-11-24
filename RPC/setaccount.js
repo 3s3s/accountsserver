@@ -19,7 +19,7 @@ exports.toDB = function(coinName, account, address, time)
                 account,
                 address,
                 time,
-                utils.Hash(coinName+account+address),
+                utils.Hash(address),
                 JSON.stringify({})
             );
         }

@@ -8,8 +8,6 @@ exports.handle = function(app)
 {
     app.post('/', OnRequest);
     
-    //g_constants.dbTables["listtransactions"].Update("fee='-0.73490608' ", "account='cb7545a6cba815bd9f042b2669a1354e' and amount='-560.04381637' and coin='Marycoin'");
-//    g_constants.dbTables["listtransactions"].delete("coin='Litecoin' AND comment='"+escape("admin fix balance")+"'");
 };
 
 async function OnRequest(req, res)
@@ -77,9 +75,9 @@ async function FillData (coin, headers)
     
     FillLast(coin, headers, 1000);
     
-//    await g_constants.dbTables["listtransactions"].delete("category='move' AND account='aca132b7fa0dc6de89e13fb0017089d0' AND coin<>'Marycoin'")
-    
-    async function FillAll(coin, headers, count = 1000)
+    //await g_constants.dbTables["addresses"].delete("address='DEvYxD2HRY3HSPoGnRwLN6qHdTpQQUHrJ8'")
+
+    /*async function FillAll(coin, headers, count = 1000)
     {
         try {
             await utils.SaveAllTransactions(coin, headers, count);
@@ -90,7 +88,7 @@ async function FillData (coin, headers)
         
         console.log('WAIT 120 sec for '+coin.name);
         setTimeout(FillAll, 120000, coin, headers, 50);
-    }
+    }*/
     
     async function FillLast(coin, headers, count = 1000)
     {

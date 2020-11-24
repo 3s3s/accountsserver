@@ -160,13 +160,9 @@ exports.postString = function(host, port, path, headers, strBody, cd)
     })
 };
 
-exports.SaveAddresses = function(coin, headers, account)
+/*exports.SaveAddresses = function(coin, headers, account)
 {
     return new Promise(async ok => {
-       /* if (account == "14ae808519f026fdbb31c426b2096a35")
-        {
-            let i = 0;
-        }*/
         const addrs = await getaddressesbyaccount.queryDaemon(coin, headers, account);
         
         if (!addrs || !addrs.length)
@@ -203,7 +199,7 @@ exports.SaveAllTransactions = function(coin, headers)
             return cancel(e);
         }
     });    
-}
+}*/
 
 let g_lastTXs = {};
 exports.SaveLastTransactions = function(coin, headers, count=1000)
@@ -282,6 +278,9 @@ exports.SaveTransactions = function(coin, headers, txs)
         for (let i=txs.length-1; i>=0; i--)
         {
             try {
+                if (!txs[i].txid)
+                    continue;
+                    
                 exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (txs[i].comment)
                 {
@@ -290,7 +289,10 @@ exports.SaveTransactions = function(coin, headers, txs)
                         if (txs[i].category == 'send' && data[0].from && data[0].from.length > 3)
                             txs[i].account = data[0].from;
                     }
-                    catch(e) {}
+                    catch(e) {
+                        exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid + 
+                        "catch error="+e.message)
+                    }
                 }
 
                 const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
@@ -300,21 +302,21 @@ exports.SaveTransactions = function(coin, headers, txs)
                 //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions1 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (rows.length)
                 {
-                    let account = rows[0].account == "%20" ? 
+                    /*let account = rows[0].account == "%20" ? 
                         (txs[i].account && txs[i].account.length > 3 ? txs[i].account : await GetAccount(txs[i].address)) : 
                         rows[0].account;
                             
                     if (txs[i].category == 'send' && txs[i].account && txs[i].account.length)
-                        account = txs[i].account;
+                        account = txs[i].account;*/
                     //console.log('SaveTransactions1 coin='+coinName+', account='+txs[i].account);
                     
                     if (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations)
                     {
                         const confirmations = escape(txs[i].confirmations) || 0;
                         
-                        console.log("try update confirmations "+coinName+"; uid='"+escape(uid)+"'"+"; account="+account)
+                        //console.log("try update confirmations "+coinName+"; uid='"+escape(uid)+"'"+"; account="+account)
                         await g_constants.dbTables["listtransactions"].Update(
-                            "confirmations="+confirmations+", account='"+account+"'",
+                            "confirmations="+confirmations,
                             "uid='"+escape(uid)+"'"
                         );
                     }
@@ -326,10 +328,10 @@ exports.SaveTransactions = function(coin, headers, txs)
                     {
                         const otheraccount = txs[i].otheraccount && txs[i].otheraccount.length ? escape(txs[i].otheraccount) : rows[0].otheraccount;
     
-                        console.log("try update block "+coinName+"; uid='"+escape(uid)+"'"+"; account="+escape(account))
+                        //console.log("try update block "+coinName+"; uid='"+escape(uid)+"'"+"; account="+escape(account))
                         await g_constants.dbTables["listtransactions"].Update(
                             "blockhash='"+escape(txs[i].blockhash)+"', blockindex="+escape(txs[i].blockindex)+", blocktime="+escape(txs[i].blocktime)+
-                            ", account='"+escape(account)+"' "+ ", otheraccount='"+otheraccount+"' ",
+                            ", otheraccount='"+otheraccount+"' ",
                             "uid='"+escape(uid)+"'"
                         );
                         
@@ -379,7 +381,8 @@ exports.SaveTransactions = function(coin, headers, txs)
                 }
             }
             catch(e) {
-                exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions (catch error2) "+coinName+"; error="+e.message)
+                exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions (catch error2) "+coinName+"; error="+e.message+
+                " txs[i].txid="+(txs && txs.length > i ? txs[i].txid : "???"))
             }
         }
 
