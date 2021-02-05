@@ -303,30 +303,35 @@ exports.SaveTransactions = function(coin, headers, txs)
                 const rows0 = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
                 const rows = await g_constants.dbTables["listtransactions"].Select2("*", "txid='"+escape(txs[i].txid)+"' AND category='"+escape(txs[i].category)+"' AND amount='"+escape(txs[i].amount)+"' ORDER BY time*1");
                 
+                const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address, txs[i].blocktime);
+                
                 if (rows.length != rows0.length)
                 {
-                    exports.log2("!!!ERROR!!! txid="+txs[i].txid+" ("+rows.length+", "+rows0.length+")");
-                    
                     for (let k=1; k<rows.length; k++)
                     {
-                        await g_constants.dbTables["listtransactions"].Update("amount='0'", "uid='"+escape(rows[k].uid)+"'");
+                        if (account == rows[k].account && rows[k].category == 'receive')
+                        {
+                            exports.log2("!!!ERROR!!! txid="+txs[i].txid+" ("+rows.length+", "+rows0.length+")");
+                            await g_constants.dbTables["listtransactions"].Update("amount='0'", "uid='"+escape(rows[k].uid)+"'");
+                        }
                     }
                     //exports.log2("rows0="+JSON.stringify(rows0));
                     //exports.log2("rows="+JSON.stringify(rows));
                     continue;
                 }
-                    
+                
+                
+                if (txs[i].category == 'receive' && txs[i].amount*1 > 0 && account == "-")
+                {
+                    await g_constants.dbTables["listtransactions"].Update("amount='0'", "uid='"+escape(uid)+"'");
+                    exports.log2("!!!was updated!!! "+coinName+"; "+txs[i].amount+"; uid='"+escape(uid)+"'; ");
+                    continue;
+                }
+                
+                
                 //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions1 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (rows.length)
                 {
-                    /*let account = rows[0].account == "%20" ? 
-                        (txs[i].account && txs[i].account.length > 3 ? txs[i].account : await GetAccount(txs[i].address)) : 
-                        rows[0].account;
-                            
-                    if (txs[i].category == 'send' && txs[i].account && txs[i].account.length)
-                        account = txs[i].account;*/
-                    //console.log('SaveTransactions1 coin='+coinName+', account='+txs[i].account);
-                    
                     if (txs[i].confirmations && rows[0].confirmations != txs[i].confirmations)
                     {
                         const confirmations = escape(txs[i].confirmations) || 0;
@@ -364,8 +369,7 @@ exports.SaveTransactions = function(coin, headers, txs)
 
                 //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions2 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 try {
-                    const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address);
-                    
+
                     exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + ' SaveTransactions (insert) coin='+coinName+', account='+account+"; amount="+txs[i].amount+"; txid="+txs[i].txid)
                     
                     await g_constants.dbTables["listtransactions"].Insert(
@@ -407,10 +411,21 @@ exports.SaveTransactions = function(coin, headers, txs)
     });
 }
 
-function GetAccount(address)
+exports.GetAccount = function(address, blocktime = 0)
+{
+   return  GetAccount(address, blocktime);
+}
+
+function GetAccount(address, blocktime = 0)
 {
     return new Promise((async ok => {
         const rows = await g_constants.dbTables["addresses"].Select2("*", "address='"+escape(address)+"'");
+        
+        if (rows.length && blocktime*1 > 0 && rows[0].time*1 > blocktime*1000)
+        {
+            exports.log2("!!!ERROR 2!!!");
+            return ok("-");
+        }
 
         return rows.length ? ok(unescape(rows[0].account)) : ok(" ");
     }));

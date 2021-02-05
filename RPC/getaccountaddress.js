@@ -25,7 +25,10 @@ exports.Run = async function(coin, headers, post_data, res)
         if (newAddress)
         {
             await setaccount.toDB(coin.name, account, newAddress, Date.now());
-            return res.end(newAddress);
+            
+            const savedAddress = await exports.fromDB(coin.name, account);
+            
+            return res.end(savedAddress);
         }
             
         return res.end("");

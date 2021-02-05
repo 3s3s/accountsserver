@@ -22,50 +22,14 @@ exports.Run = async function(coin, headers, post_data, res)
         
         if (account.indexOf("1dfce560433d662cc779ad4edc9e5472") != -1)
             utils.log2("listtransactions: "+"coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
-        /*if (!addrs || !addrs.length)
-            return res.end(JSON.stringify({result: [], error: null}));
-            
-        let addresses = " AND (";
-        for (let i=0; i<addrs.length; i++)
-        {
-            addresses += "address='"+addrs[i].address+"'";
-            if (i+1 == addrs.length)
-                break;
-            
-            addresses += " OR ";
-        }
-        addresses += ") ";*/
-        
+
         const rowsOrigin = await g_constants.dbTables["listtransactions"].Select2("*", "coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
 
         let rowsRet = [];
         for (let i=0; i<rowsOrigin.length; i++)
         {
             const bIsOwnAddress = GotAddress(addrs, rowsOrigin[i].address);
-            /*for (let j=0; j<addrs.length; j++)
-            {
-                if (rowsOrigin[i].address == addrs[j].address && rowsOrigin[i].category == 'receive')
-                {
-                    rowsRet.push(rowsOrigin[i]);
-                    break;
-                }
-                if (rowsOrigin[i].address != addrs[j].address && rowsOrigin[i].category == 'send')
-                {
-                    if (i-1 >= 0 && rowsOrigin[i-1].category == 'receive' &&
-                        rowsOrigin[i].txid == rowsOrigin[i-1].txid && rowsOrigin[i].amount*1+rowsOrigin[i-1].amount*1 < 0.00001)
-                    {
-                        continue;    
-                    }
-                    if (i+1 < rowsOrigin.length && rowsOrigin[i+1].category == 'receive' &&
-                        rowsOrigin[i].txid == rowsOrigin[i+1].txid && rowsOrigin[i].amount*1+rowsOrigin[i+1].amount*1 < 0.00001)
-                    {
-                        continue;    
-                    }
-                    
-                    rowsRet.push(rowsOrigin[i]);
-                    break;
-                }
-            }*/
+
             let bNeedAdd = false;
             
             if (bIsOwnAddress && rowsOrigin[i].category == 'receive')
@@ -84,6 +48,11 @@ exports.Run = async function(coin, headers, post_data, res)
                 {
                     bNeedAdd = false;    
                 }
+            }
+            if (!bIsOwnAddress && rowsOrigin[i].category == 'receive')
+            {
+                //const account = await utils.GetAccount(rowsOrigin[i].address);
+                //await g_constants.dbTables["listtransactions"].Update("account='"+escape(" ")+"'", "uid='"+escape(rows[k].uid)+"'");
             }
             
             if (bNeedAdd)
