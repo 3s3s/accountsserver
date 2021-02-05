@@ -272,6 +272,9 @@ exports.SaveTransactions = function(coin, headers, txs)
     const coinName = coin.name;
     
     return new Promise(async (ok, cancel) => {
+        
+        //if (coinName != "Dogecoin")
+        //    return ok();
             
         let bFirstSkip = true;
         //for (let i=txs.length-1; i>=0; i--)
@@ -297,8 +300,22 @@ exports.SaveTransactions = function(coin, headers, txs)
 
                 const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
                         
-                const rows = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
+                const rows0 = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
+                const rows = await g_constants.dbTables["listtransactions"].Select2("*", "txid='"+escape(txs[i].txid)+"' AND category='"+escape(txs[i].category)+"' AND amount='"+escape(txs[i].amount)+"' ORDER BY time*1");
                 
+                if (rows.length != rows0.length)
+                {
+                    exports.log2("!!!ERROR!!! txid="+txs[i].txid+" ("+rows.length+", "+rows0.length+")");
+                    
+                    for (let k=1; k<rows.length; k++)
+                    {
+                        await g_constants.dbTables["listtransactions"].Update("amount='0'", "uid='"+escape(rows[k].uid)+"'");
+                    }
+                    //exports.log2("rows0="+JSON.stringify(rows0));
+                    //exports.log2("rows="+JSON.stringify(rows));
+                    continue;
+                }
+                    
                 //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions1 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (rows.length)
                 {
@@ -353,7 +370,7 @@ exports.SaveTransactions = function(coin, headers, txs)
                     
                     await g_constants.dbTables["listtransactions"].Insert(
                         coinName,
-                        account,
+                        account == " " && txs[i].label && txs[i].label.length > 4 ? txs[i].label : account,
                         txs[i].address||" ",
                         txs[i].category||" ",
                         txs[i].amount||"0",

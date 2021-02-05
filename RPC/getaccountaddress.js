@@ -50,7 +50,7 @@ exports.fromDB = function(coinName, account)
             
         const rows = await g_constants.dbTables["addresses"].Select2("*", "coin='"+escape(coinName)+"' AND account='"+escape(account)+"'");
         
-        if (!rows || !rows.length)
+        if (!rows || !rows.length || rows[0].address.indexOf("_") > 0)
             return ok(null);
         
         return ok(rows[0].address);

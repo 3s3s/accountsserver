@@ -1,6 +1,7 @@
 'use strict';
 const utils = require("../utils");
 const getbalance = require("./getbalance");
+const getnewaddress = require("./getnewaddress");
 
 exports.Run = async function(coin, headers, post_data, res)
 {
@@ -29,6 +30,11 @@ exports.Run = async function(coin, headers, post_data, res)
             newData.params = [data.params[1], data.params[2], data.params[4], data.params[1]];
         if (data.params.length == 6)
             newData.params = [data.params[1], data.params[2], data.params[5], data.params[1]];
+            
+        const newAddress = await getnewaddress.queryDaemon(coin, headers);
+        
+        if (newAddress.length == 0)
+            return res.end(JSON.stringify({error: { message: 'error when getting new address'} }));
         
         utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, JSON.stringify(newData), async result => {
             if (!result.data || !result.data.length)
@@ -42,14 +48,15 @@ exports.Run = async function(coin, headers, post_data, res)
     }
     catch(e)
     {
-        utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
+        return res.end(JSON.stringify({error: { message: 'sendtoaddress catch error '+e.message} }));
+        /*utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
             console.log(result.data);
             
             if (result.success == false)
                 return res.end(JSON.stringify({error: { message: result.message || 'sendfrom failed'} }));
             
             res.end(result.data || "");
-        });
+        });*/
     }
 
 }

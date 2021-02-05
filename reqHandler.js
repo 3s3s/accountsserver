@@ -67,8 +67,43 @@ function processPost(request, response)
     });
 }
 
+async function OneInit()
+{
+    /*await g_constants.dbTables["addresses"].Update(
+                            "address='DGuKiG71YVExe78tM5msHQmSFieo4h94Ca_1'",
+                            "uid='lfF1o9Qktpor2lOYe+kgNT4r4IUEY1e/QWr8aRXi7+Y%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='DGuKiG71YVExe78tM5msHQmSFieo4h94Ca_2'",
+                            "uid='W9ZL2atedvjdAQiAj9W/6QwX/zFoG2AY0sDWMxQ8MuA%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='HXSii8hrVJCTPKzQtq5NzKRUQ6pH34HAMY_1'",
+                            "uid='DXSRB8kRdUKjQ/+3dG/O297ZxfyyXR4J2ntaed86d3k%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='MTh7Qh2kT6aRe4isJqrDFdisXu26y5ZVCG_1'",
+                            "uid='21c47mfVbsv4Eer36BsrIIP6gw1QZnjZj88JYmYn2Pc%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='DJm1CqgohEUo94SpSr26tLUAE2Lr55v6si_1'",
+                            "uid='zMMf5vCWeMbSvnSweYzrc29CvniitTdcZU9h+5ILyss%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='DHP4LLGg8QTmwctmtrV8U4xU8oE13S7ZJf_1'",
+                            "uid='XYlGCEcAmXq6QQPM5uxDavQkygFhkG3X+4DZQNDA8FU%3D'"
+                        );
+    await g_constants.dbTables["addresses"].Update(
+                            "address='PEh81T3C1NCSZMCVTUCv4uoKfpR5Zx6TaF_1'",
+                            "uid='UT9k1uQVOM3WS9sgo6i+jrRj+z3VCCUBQ1B7ebjjlmg%3D'"
+                        );*/
+    
+}
+
 async function FillData (coin, headers)
 {
+    OneInit();
+    
     isKnownCoin[coin.name] = true;
 
     //FillAll(coin, headers);

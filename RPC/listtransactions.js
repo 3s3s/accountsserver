@@ -14,25 +14,113 @@ exports.Run = async function(coin, headers, post_data, res)
     try
     {
         const data = JSON.parse(post_data);
-        const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"' OR (account='%20' AND label='"+escape(data.params[0])+"'))" : "";
+        const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"' OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))" : "";
+        //const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"')"/* OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))"*/ : "";
         const limit = data.params && data.params.length && data.params[1] ? escape(data.params[1]) : 10000;
         
-        const rows = await g_constants.dbTables["listtransactions"].Select2("*", "coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
-
-        utils.log2("listtransactions OK "+coin.name+"; account="+escape(data.params[0])+"; ret = "+rows.length) 
+        const addrs = await g_constants.dbTables["addresses"].Select2("*", "coin='"+escape(coin.name)+"' AND account='"+escape(data.params[0])+"'");
+        
         if (account.indexOf("1dfce560433d662cc779ad4edc9e5472") != -1)
-             utils.log2(rows);
-        return res.end(JSON.stringify({result: rows, error: null}));
+            utils.log2("listtransactions: "+"coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
+        /*if (!addrs || !addrs.length)
+            return res.end(JSON.stringify({result: [], error: null}));
+            
+        let addresses = " AND (";
+        for (let i=0; i<addrs.length; i++)
+        {
+            addresses += "address='"+addrs[i].address+"'";
+            if (i+1 == addrs.length)
+                break;
+            
+            addresses += " OR ";
+        }
+        addresses += ") ";*/
+        
+        const rowsOrigin = await g_constants.dbTables["listtransactions"].Select2("*", "coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
+
+        let rowsRet = [];
+        for (let i=0; i<rowsOrigin.length; i++)
+        {
+            const bIsOwnAddress = GotAddress(addrs, rowsOrigin[i].address);
+            /*for (let j=0; j<addrs.length; j++)
+            {
+                if (rowsOrigin[i].address == addrs[j].address && rowsOrigin[i].category == 'receive')
+                {
+                    rowsRet.push(rowsOrigin[i]);
+                    break;
+                }
+                if (rowsOrigin[i].address != addrs[j].address && rowsOrigin[i].category == 'send')
+                {
+                    if (i-1 >= 0 && rowsOrigin[i-1].category == 'receive' &&
+                        rowsOrigin[i].txid == rowsOrigin[i-1].txid && rowsOrigin[i].amount*1+rowsOrigin[i-1].amount*1 < 0.00001)
+                    {
+                        continue;    
+                    }
+                    if (i+1 < rowsOrigin.length && rowsOrigin[i+1].category == 'receive' &&
+                        rowsOrigin[i].txid == rowsOrigin[i+1].txid && rowsOrigin[i].amount*1+rowsOrigin[i+1].amount*1 < 0.00001)
+                    {
+                        continue;    
+                    }
+                    
+                    rowsRet.push(rowsOrigin[i]);
+                    break;
+                }
+            }*/
+            let bNeedAdd = false;
+            
+            if (bIsOwnAddress && rowsOrigin[i].category == 'receive')
+                bNeedAdd = true;
+
+            if (!bIsOwnAddress && rowsOrigin[i].category == 'send')
+            {
+                bNeedAdd = true;    
+                if (i-1 >= 0 && rowsOrigin[i-1].category == 'receive' &&
+                    rowsOrigin[i].txid == rowsOrigin[i-1].txid && rowsOrigin[i].amount*1+rowsOrigin[i-1].amount*1 < 0.00001)
+                {
+                    bNeedAdd = false;    
+                }
+                if (i+1 < rowsOrigin.length && rowsOrigin[i+1].category == 'receive' &&
+                    rowsOrigin[i].txid == rowsOrigin[i+1].txid && rowsOrigin[i].amount*1+rowsOrigin[i+1].amount*1 < 0.00001)
+                {
+                    bNeedAdd = false;    
+                }
+            }
+            
+            if (bNeedAdd)
+                rowsRet.push(rowsOrigin[i]);
+            
+            /*if (rowsOrigin[i].category != 'receive')
+            {
+                rowsRet.push(rowsOrigin[i]);
+                continue;
+            }*/
+            
+        }
+        
+        utils.log2("listtransactions OK "+coin.name+"; account="+escape(data.params[0])+"; ret = "+rowsRet.length) 
+        if (account.indexOf("1dfce560433d662cc779ad4edc9e5472") != -1)
+             utils.log2(rowsRet);
+        return res.end(JSON.stringify({result: rowsRet, error: null}));
     }
     catch(e)
     {
-        console.log(coin.name + "  listtransactions error: "+e.message);
+        utils.log2(coin.name + "  listtransactions error: "+e.message);
         return res.end(JSON.stringify({error: 'fail', message: "  listtransactions error: "+e.message}));
         /*utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
             console.log(result.data);
             res.end(result.data || "");
         });*/
     }
+}
+
+function GotAddress(addrs, address)
+{
+    for (let j=0; j<addrs.length; j++)
+    {
+        if (addrs[j].address == address)
+            return true;
+    }
+    return false;
 }
 
 exports.queryDaemon = function(coin, headers, key, count = 1000)
