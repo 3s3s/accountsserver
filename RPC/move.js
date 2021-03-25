@@ -31,8 +31,8 @@ exports.Run = async function(coin, headers, post_data, res)
         utils.log2("move step 1")
         g_Lock[lock] = true;
         
-        const balance0 = await getbalance.GetAccountBalance(coin.name, data.params[0]);
-        const balance1 = await getbalance.GetAccountBalance(coin.name, data.params[1]);
+        const balance0 = await getbalance.GetAccountBalance(coin, data.params[0]);
+        const balance1 = await getbalance.GetAccountBalance(coin, data.params[1]);
 
         if (1*balance0 - 1*data.params[2] < 0 && Math.abs(1*balance0 - 1*data.params[2]) > 0.00001)
         {
@@ -43,11 +43,11 @@ exports.Run = async function(coin, headers, post_data, res)
         if (1*balance1 + 1*data.params[2] < 0 && Math.abs(1*balance1 + 1*data.params[2]) > 0.00001)
         {
             if (g_Lock[lock]) delete g_Lock[lock];
-            console.log("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1)
+            utils.log2("move return false with message: "+'(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1)
             return res.end(JSON.stringify({error: {message: '(2) bad account ('+data.params[1]+') balance: '+1*balance1+"; data.params[2]="+data.params[2]*1} }));
         }
             
-        utils.log2("move step 2")
+        utils.log2("move step 2; balance0="+balance0+"; balance1="+balance1);
        // const balanceTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
        // if (balanceTo*1 > 0.01)
         //    return res.end(JSON.stringify({error: 'fail', message: 'bad account balance: '+1*balanceTo}));
@@ -108,8 +108,8 @@ exports.Run = async function(coin, headers, post_data, res)
             uid2
         );
         
-        balanceFinalFrom = await getbalance.GetAccountBalance(coin.name, data.params[0]);
-        balanceFinalTo = await getbalance.GetAccountBalance(coin.name, data.params[1]);
+        balanceFinalFrom = await getbalance.GetAccountBalance(coin, data.params[0]);
+        balanceFinalTo = await getbalance.GetAccountBalance(coin, data.params[1]);
         
         if (g_Lock[lock]) delete g_Lock[lock];
         

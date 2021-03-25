@@ -18,7 +18,7 @@ exports.Run = async function(coin, headers, post_data, res)
         //const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"')"/* OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))"*/ : "";
         const limit = data.params && data.params.length && data.params[1] ? escape(data.params[1]) : 10000;
         
-        const addrs = await g_constants.dbTables["addresses"].Select2("*", "coin='"+escape(coin.name)+"' AND account='"+escape(data.params[0])+"'");
+        const addrs = await g_constants.dbTables["addresses"].Select2("*", "(coin='"+escape(coin.name)+"' OR coin='"+escape(coin.name)+"_old')  AND account='"+escape(data.params[0])+"'");
         
         if (account.indexOf("1dfce560433d662cc779ad4edc9e5472") != -1)
             utils.log2("listtransactions: "+"coin='"+escape(coin.name)+"' "+account, "ORDER BY 1*time DESC LIMIT "+limit);
@@ -99,12 +99,22 @@ exports.queryDaemon = function(coin, headers, key, count = 1000)
             const strJSON = '{"jsonrpc": "1.0", "id":"curltest", "method": "listtransactions", "params": ["'+key+'",  '+count+', 0] }';
             const result = await utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, strJSON);
             
+            //if (coin.name == 'Weacoin2')
+            //    utils.log2("listtransactions result="+JSON.stringify(result));
+            
             if (result.success == false)
+            {
+                utils.log2("listtransactions "+coin+" result.success == false "+JSON.stringify(result));
                 return ok(null);
+            }
+            
+            if (!result.data)
+                result.data = {result: []};
             
             return ok(result.data && result.data.result ? result.data.result : JSON.parse(result.data).result);
         }
         catch(e) {
+            utils.log2("listtransactions "+coin.name+" cath error "+e.message);
             return ok(null);
         }
     });

@@ -118,6 +118,14 @@ exports.postString = function(host, port, path, headers, strBody, cd)
             console.log('Status: ' + res.statusCode); 
             console.log('Headers: ' + JSON.stringify(res.headers)); 
             
+            /*if (port.nPort == 34451)
+            {
+                exports.log2('headers: ' + JSON.stringify(headers))
+                exports.log2('strBody: ' + strBody)
+                exports.log2('Status: ' + res.statusCode)
+                exports.log2('Headers: ' + JSON.stringify(res.headers))
+            }*/
+            
             res.setEncoding('utf8'); 
             
     		var res_data = '';
@@ -207,14 +215,14 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
     return new Promise(async (ok, cancel) => {
         try
         {
-            console.log('SaveLastTransactions for '+coin.name);
+            exports.log2('SaveLastTransactions for '+coin.name);
             let txs = await listtransactions.queryDaemon(coin, headers, "*", count);
                 
             if (txs) exports.Offline(coin.name, false);
                 
             if (!txs) 
             {
-                console.log('SaveLastTransactions cancel for '+coin.name);
+                exports.log2('SaveLastTransactions cancel for '+coin.name);
                 return cancel(new Error("SaveLastTransactions: CANCEL coin daemon failed "+coin.name));
             }
                 
@@ -243,25 +251,16 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
  
             g_lastTXs[coin.name] = txs;
                 
-            /*if (txs.length && g_lastTXs[coin.name] == txs[0].txid && g_lastTXs[coin.name+"_"] == txs[txs.length-1].txid)
-                return ok();
-                
-            if (txs.length && txs[0].txid && txs[0].txid.length > 3 && txs[txs.length-1].txid && txs[txs.length-1].txid.length < 3)
-            {
-                g_lastTXs[coin.name] = txs[0].txid;
-                g_lastTXs[coin.name+"_"] == txs[txs.length-1].txid;
-            }*/
-                
-            console.log('FillLast save for '+coin.name+" count="+txs.length);
+            exports.log2('FillLast save for '+coin.name+" count="+txs.length);
                 
             await exports.SaveTransactions(coin, headers, txs);
                     
-            console.log('SAVED for '+coin.name+" count="+txs.length);
+            exports.log2('SAVED for '+coin.name+" count="+txs.length);
             
             return ok();
         }
         catch(e) {
-            console.log('SaveLastTransactions cancel for '+coin.name+" FAILED: "+e.message)
+            exports.log2('SaveLastTransactions cancel for '+coin.name+" FAILED: "+e.message)
             return cancel(e);
         }
     });
@@ -299,9 +298,10 @@ exports.SaveTransactions = function(coin, headers, txs)
                 }
 
                 const uid = exports.Hash(coinName+(txs[i].time||-1)+txs[i].comment+(txs[i].address||"")+(txs[i].category||"")+(txs[i].amount||"")+(txs[i].vout||"")+(txs[i].txid||""));
+                const txid = "txid='"+escape(txs[i].txid)+"' AND category='"+escape(txs[i].category)+"' AND amount='"+escape(txs[i].amount)+"' ORDER BY time*1";
                         
                 const rows0 = await g_constants.dbTables["listtransactions"].Select2("*", "uid='"+escape(uid)+"'");
-                const rows = await g_constants.dbTables["listtransactions"].Select2("*", "txid='"+escape(txs[i].txid)+"' AND category='"+escape(txs[i].category)+"' AND amount='"+escape(txs[i].amount)+"' ORDER BY time*1");
+                const rows = await g_constants.dbTables["listtransactions"].Select2("*", txid);
                 
                 const account = txs[i].category == 'send' ? txs[i].account : await GetAccount(txs[i].address, txs[i].blocktime);
                 
@@ -416,18 +416,25 @@ exports.GetAccount = function(address, blocktime = 0)
    return  GetAccount(address, blocktime);
 }
 
+let g_accounts = {}
+
 function GetAccount(address, blocktime = 0)
 {
     return new Promise((async ok => {
+        if (g_accounts[address])
+            return ok(g_accounts[address]);
+            
         const rows = await g_constants.dbTables["addresses"].Select2("*", "address='"+escape(address)+"'");
         
         if (rows.length && blocktime*1 > 0 && rows[0].time*1 > blocktime*1000)
         {
             exports.log2("!!!ERROR 2!!!");
-            return ok("-");
+            g_accounts[address] = "-";
+            return ok(g_accounts[address]);
         }
 
-        return rows.length ? ok(unescape(rows[0].account)) : ok(" ");
+        g_accounts[address] = rows.length ? ok(unescape(rows[0].account)) : ok(" ");
+        return ok(g_accounts[address]);
     }));
 }
 

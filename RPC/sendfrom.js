@@ -15,10 +15,10 @@ exports.Run = async function(coin, headers, post_data, res)
         if (!data.params || data.params.length < 3 || 1*data.params[2] < 0)
             return res.end(JSON.stringify({error: { message: 'bad params' }}));
 
-        let balance = await getbalance.GetAccountBalance(coin.name, data.params[0]);
+        let balance = await getbalance.GetAccountBalance(coin, data.params[0]);
 
         if (1*balance < 1*data.params[2])
-            return res.end(JSON.stringify({error: { message: 'insufficient funds: ('+1*balance+' < '+1*data.params[2]+')'} }));
+            return res.end(JSON.stringify({error: { message: 'insufficient funds for account '+data.params[0]+': ('+1*balance+' < '+1*data.params[2]+')'} }));
         
         let newData = data;
         newData.method = "sendtoaddress";

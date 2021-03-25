@@ -97,6 +97,10 @@ async function OneInit()
                             "address='PEh81T3C1NCSZMCVTUCv4uoKfpR5Zx6TaF_1'",
                             "uid='UT9k1uQVOM3WS9sgo6i+jrRj+z3VCCUBQ1B7ebjjlmg%3D'"
                         );*/
+    /*await g_constants.dbTables["addresses"].Update(
+        'coin="Bitcoin_old"',
+        'coin="Bitcoin"'
+        );*/
     
 }
 
