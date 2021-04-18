@@ -1,6 +1,7 @@
 'use strict';
 const utils = require("../utils");
 const getbalance = require("./getbalance");
+const g_constants = require("../constants");
 const getnewaddress = require("./getnewaddress");
 
 exports.Run = async function(coin, headers, post_data, res)
@@ -36,11 +37,72 @@ exports.Run = async function(coin, headers, post_data, res)
         if (newAddress.length == 0)
             return res.end(JSON.stringify({error: { message: 'error when getting new address'} }));
         
+        try {
+            await g_constants.dbTables["listtransactions"].Insert(
+                    coin.name,
+                    data.params[0],
+                    " ",
+                    "move",
+                    -1 * data.params[2],
+                    " ",
+                    "-1",
+                    "0",
+                    "0",
+                    " ",
+                    " ",
+                    "-1",
+                    "-1",
+                    " ",
+                    Date.now(),
+                    "-1",
+                    "move_from_sento",
+                    data.params[1],
+                    "",
+                    " ",
+                    utils.Hash(Date.now()+" "+Math.random()+"_")
+            );
+        }
+        catch(e)
+        {
+           return res.end(JSON.stringify({error: { message: 'sendtoaddress catch error '+e.message} })); 
+        }
+
         utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, JSON.stringify(newData), async result => {
             if (!result.data || !result.data.length)
+            {
+                try {
+                    await g_constants.dbTables["listtransactions"].Insert(
+                            coin.name,
+                            data.params[0],
+                            " ",
+                            "move",
+                            data.params[2],
+                            " ",
+                            "-1",
+                            "0",
+                            "0",
+                            " ",
+                            " ",
+                            "-1",
+                            "-1",
+                            " ",
+                            Date.now(),
+                            "-1",
+                            "move_from_sento",
+                            data.params[1],
+                            "",
+                            " ",
+                            utils.Hash(Date.now()+" "+Math.random()+"_")
+                    );
+                }
+                catch(e)
+                {
+                   return res.end(JSON.stringify({error: { message: 'sendtoaddress failed and then catch error '+e.message} })); 
+                }
                 return res.end(JSON.stringify({error: { message: 'sendtoaddress failed'} }));
+            }
             
-            await utils.SaveLastTransactions(coin, headers, 5);   
+            utils.SaveLastTransactions(coin, headers, 5);   
             
             return res.end(result.data || "");
             
@@ -49,14 +111,6 @@ exports.Run = async function(coin, headers, post_data, res)
     catch(e)
     {
         return res.end(JSON.stringify({error: { message: 'sendtoaddress catch error '+e.message} }));
-        /*utils.postString(coin.hostname, {'nPort' : coin.port, 'name' : "http"}, "/", headers, post_data, result => {
-            console.log(result.data);
-            
-            if (result.success == false)
-                return res.end(JSON.stringify({error: { message: result.message || 'sendfrom failed'} }));
-            
-            res.end(result.data || "");
-        });*/
     }
 
 }
