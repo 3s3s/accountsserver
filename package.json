@@ -13,6 +13,6 @@
     "express": "^4.16.4",
     "sendmail": "latest",
     "sqlite3": "latest",
-    "ws": "^6.2.0"
+    "ws": "^6.2.2"
   }
 }
