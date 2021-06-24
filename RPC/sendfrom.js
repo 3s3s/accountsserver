@@ -26,16 +26,15 @@ exports.Run = async function(coin, headers, post_data, res)
         
         let newData = data;
         newData.method = "sendtoaddress";
-        newData.params[0] = data.params[1]; //address
-        newData.params[1] = data.params[2]; //amount
-        
-        if (data.params.length == 5)
-            newData.params[2] = data.params[4]; //comment
-        if (data.params.length == 6)
-            newData.params[2] = data.params[5]; //comment (DASH forks)
-            
-        newData.params[3] = data.params[0]; //"to" - comment
-        
+        newData.params = [
+            data.params[1], //address
+            data.params[2], //amount
+            data.params.length == 5 ? 
+                data.params[4] : //comment
+                data.params[5],  //comment (DASH forks)
+            data.params[0]   //"to" - comment
+        ];
+
         /*if (data.params.length == 5)
             newData.params = [data.params[1], data.params[2], data.params[4], data.params[1]];
         if (data.params.length == 6)
