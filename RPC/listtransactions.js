@@ -14,7 +14,7 @@ exports.Run = async function(coin, headers, post_data, res)
     try
     {
         const data = JSON.parse(post_data);
-        const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"' OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))" : "";
+        const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"' OR account='"+escape(data.params[0])+"_' OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))" : "";
         //const account = data.params && data.params.length ? " AND (account='"+escape(data.params[0])+"')"/* OR ((account='%20' OR account='') AND label='"+escape(data.params[0])+"'))"*/ : "";
         const limit = data.params && data.params.length && data.params[1] ? escape(data.params[1]) : 10000;
         

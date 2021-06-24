@@ -328,6 +328,23 @@ exports.SaveTransactions = function(coin, headers, txs)
                     continue;
                 }
                 
+                if (txs[i].category == 'receive')
+                {
+                    for (let j=0; j<rows.length; j++)
+                    {
+                        if (rows[j].account.length < 10)
+                        {
+                            exports.log2("check receiving account "+rows[j].account+"; new account = "+account+" ("+coinName+")")
+                            if (account.length > 10)
+                            {
+                                await g_constants.dbTables["listtransactions"].Update("account='"+escape(account)+"'", "uid='"+escape(uid)+"'");
+                                exports.log2("!!!was updated account!!! "+account+"; uid='"+escape(uid)+"'; ");
+                                break;
+                            }
+                        }
+                    }
+                }
+                
                 
                 //exports.log2(new Date().toJSON().slice(0,10).replace(/-/g,'/') + " SaveTransactions1 "+coinName+"; i="+i+"; txs[i].txid="+txs[i].txid)
                 if (rows.length)

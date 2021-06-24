@@ -21,23 +21,33 @@ exports.Run = async function(coin, headers, post_data, res)
         if (1*balance < 1*data.params[2])
             return res.end(JSON.stringify({error: { message: 'insufficient funds for account '+data.params[0]+': ('+1*balance+' < '+1*data.params[2]+')'} }));
         
-        let newData = data;
-        newData.method = "sendtoaddress";
-        
         if (data.params.length <= 4)
             return res.end(JSON.stringify({error: { message: 'bad send request'} }));
         
+        let newData = data;
+        newData.method = "sendtoaddress";
+        newData.params[0] = data.params[1]; //address
+        newData.params[1] = data.params[2]; //amount
+        
         if (data.params.length == 5)
+            newData.params[2] = data.params[4]; //comment
+        if (data.params.length == 6)
+            newData.params[2] = data.params[5]; //comment (DASH forks)
+            
+        newData.params[3] = data.params[0]; //"to" - comment
+        
+        /*if (data.params.length == 5)
             newData.params = [data.params[1], data.params[2], data.params[4], data.params[1]];
         if (data.params.length == 6)
-            newData.params = [data.params[1], data.params[2], data.params[5], data.params[1]];
+            newData.params = [data.params[1], data.params[2], data.params[5], data.params[1]];*/
             
-        const newAddress = await getnewaddress.queryDaemon(coin, headers);
+        //const newAddress = await getnewaddress.queryDaemon(coin, headers);
         
-        if (newAddress.length == 0)
-            return res.end(JSON.stringify({error: { message: 'error when getting new address'} }));
+        //if (newAddress.length == 0)
+        //    return res.end(JSON.stringify({error: { message: 'error when getting new address'} }));
         
         try {
+            
             await g_constants.dbTables["listtransactions"].Insert(
                     coin.name,
                     data.params[0],
