@@ -15,12 +15,24 @@ const log_file_db = require("fs").createWriteStream(__dirname + '/debug_db.log',
 const log_file2 = require("fs").createWriteStream(__dirname + '/debug2.log', {flags : 'w'});
 
 exports.log_db = function(d) {
-    log_file_db.write(util.format(d) + '\n');
+    log_file_db.write((new Date()).toUTCString()+"  "+util.format(d) + '\n');
 }
 
 exports.log2 = function(d) {
-    log_file2.write(util.format(d) + '\n');
+    log_file2.write((new Date()).toUTCString()+"  "+util.format(d) + '\n');
 }
+
+Array.prototype.unique = function() {
+    var a = this.concat();
+    for(var i=0; i<a.length; ++i) {
+        for(var j=i+1; j<a.length; ++j) {
+            if(a[i] === a[j])
+                a.splice(j--, 1);
+        }
+    }
+
+    return a;
+};
 
 exports.Hash = function(str)
 {
@@ -210,12 +222,12 @@ exports.SaveAllTransactions = function(coin, headers)
 }*/
 
 let g_lastTXs = {};
-exports.SaveLastTransactions = function(coin, headers, count=1000)
+exports.SaveLastTransactions = function(coin, headers, count=100)
 {
     return new Promise(async (ok, cancel) => {
         try
         {
-            exports.log2('SaveLastTransactions for '+coin.name);
+            exports.log2('start SaveLastTransactions for '+coin.name);
             let txs = await listtransactions.queryDaemon(coin, headers, "*", count);
                 
             if (txs) exports.Offline(coin.name, false);
@@ -228,6 +240,7 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
                 
             if (g_lastTXs[coin.name])
             {
+                //console.log("g_lastTXs["+coin.name+"] = true; txs.length="+txs.length+"g_lastTXs[coin.name].length="+g_lastTXs[coin.name].length)
                 let filteredTXs = [];
                 for (let i=0; i<txs.length; i++)
                 {
@@ -235,6 +248,7 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
                     let bFound = false;
                     for(let j=0; j<g_lastTXs[coin.name].length; j++)
                     {
+                        //console.log("TMP "+coin.name+": tx.txid="+tx.txid+"g_lastTXs[coin.name][j].txid="+g_lastTXs[coin.name][j].txid)
                         if (tx.txid && tx.txid.length > 3 && tx.txid == g_lastTXs[coin.name][j].txid)
                         {
                             bFound = true;
@@ -248,8 +262,14 @@ exports.SaveLastTransactions = function(coin, headers, count=1000)
                 }
                 txs = filteredTXs;
             }
+            else
+            {
+                g_lastTXs[coin.name] = [];
+            }
+            
+            const array3 = g_lastTXs[coin.name].concat(txs).unique();
  
-            g_lastTXs[coin.name] = txs;
+            g_lastTXs[coin.name] = array3;
                 
             exports.log2('FillLast save for '+coin.name+" count="+txs.length);
                 
@@ -279,6 +299,7 @@ exports.SaveTransactions = function(coin, headers, txs)
         //for (let i=txs.length-1; i>=0; i--)
         for (let i=txs.length-1; i>=0; i--)
         {
+            await exports.Sleep(100);
             try {
                 if (!txs[i].txid)
                     continue;

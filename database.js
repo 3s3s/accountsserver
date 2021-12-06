@@ -67,48 +67,70 @@ function InitSocketPool()
             
             if (g_LastNewSocket > 0)    
                 g_LastNewSocket = Date.now();
-                
-            g_utils.log_db("new socket index="+index+'; ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
             
-            const client = new WebSocket('ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
-            client['index'] = index;
-            
-            g_wsPool[index] = client;
-        
-            client.on('open', () => {
-                heartbeat(client);
-                return ok();
-            });
-            client.on('ping', () => {
-                heartbeat(client)
-                client.pong(() => {});
-            });
-            client.on('close', async () =>  
+            try
             {
-                g_utils.log_db("close socket index="+index);
-                setTimeout(NewSocket, 1000, client.index);
-                clearTimeout(client.pingTimeout);
+                g_utils.log_db("try new socket index="+index+'; ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
                 
-                client.terminate();
-                g_wsPool[client.index] = null;
-             
-                return ok();
-            }); 
-            client.on('error', err => {
-                g_utils.log_db("close socket (error) index="+index);
-                setTimeout(NewSocket, 1, client.index);
-                clearTimeout(client.pingTimeout);
+                const client = new WebSocket('ws://'+g_constants.DOMAIN+':'+g_constants.PORT_DB);
                 
-                client.terminate();
-                g_wsPool[client.index] = null;
-             
-                return ok();
-            });
-            client.on('message', data => {
-                heartbeat(client);
-                if (!data) return;
-                setTimeout(ProcessMessage, 1, data);
-            });
+                client['index'] = index;
+                client['lastAction'] = Date.now();
+                
+                g_wsPool[index] = client;
+            
+                client.on('open', () => {
+                    g_utils.log_db("socket is opened index="+client.index)
+                    
+                    //client.ping(() => {});
+                    //heartbeat(client);
+                    return ok();
+                });
+                /*client.on('pong', () => {
+                    
+                    heartbeat(client);
+                    
+                    setTimeout(() => {
+                        client.ping(() => {})
+                        heartbeat(client)
+                    }, 10000);
+                })*/
+                client.on('ping', () => {
+                    //heartbeat(client)
+                    client.pong(() => {});
+                });
+                client.on('close', async () =>  
+                {
+                    g_utils.log_db("close socket index="+client.index);
+                    setTimeout(NewSocket, 1000, client.index);
+                    clearTimeout(client.pingTimeout);
+                    
+                    client.terminate();
+                    g_wsPool[client.index] = null;
+                 
+                    return ok();
+                }); 
+                client.on('error', err => {
+                    g_utils.log_db("close socket (error) index="+client.index);
+                    setTimeout(NewSocket, 1, client.index);
+                    clearTimeout(client.pingTimeout);
+                    
+                    client.terminate();
+                    g_wsPool[client.index] = null;
+                 
+                    return ok();
+                });
+                client.on('message', data => {
+                    //heartbeat(client);
+                    if (!data) return;
+                    setTimeout(ProcessMessage, 1, data);
+                });
+            }
+            catch(e)
+            {
+                g_utils.log_db(e.message);
+            }
+            
         })
         
         function heartbeat(client) {
@@ -118,9 +140,10 @@ function InitSocketPool()
           // equal to the interval at which your server sends out pings plus a
           // conservative assumption of the latency.
           client.pingTimeout = setTimeout(() => {
-            client.terminate();
-            g_wsPool[client.index] = null;
-          }, 40000);
+              g_utils.log_db("Terminate (ping timeout) socket index="+client.index);
+              client.terminate();
+              g_wsPool[client.index] = null;
+          }, 20000);
         }
         
         function ProcessMessage(data)
@@ -160,10 +183,18 @@ async function GetSocketFromPool(callback)
     
     if (socket && (socket.readyState === WebSocket.OPEN))
     {
-        return setTimeout(callback, 1, socket);
+        return setTimeout(callback, 10, socket);
     }
 
     g_utils.log_db("index="+index+" is not open");
+    
+    /*if (socket['lastAction'] && Date.now() - socket['lastAction'] > 1000*30)
+    {
+        g_utils.log_db("terminate socket (last action was more 30 sec) index="+index);
+        clearTimeout(socket.pingTimeout);
+                
+        socket.terminate();
+    }*/
 
     setTimeout(GetSocketFromPool, 1000, callback);
 
@@ -201,7 +232,7 @@ async function remoteInit()
 function remoteRun(SQL, callback)
 {
     //console.log(SQL)
-    if (Object.keys(g_mapIdToCallback).length > 50)
+    if (Object.keys(g_mapIdToCallback).length > 2)
         return setTimeout(remoteRun, 1000, SQL, callback);
         
     const id = 1+Math.random();
@@ -316,7 +347,7 @@ function InitFunctions()
             var callbackERR = values[values.length-1];
             
             if (values.length-1 != tableObject.cols.length ) {
-                console.log('ERROR: Insert to table "'+tableObject.name+'" failed arguments count: ' + (values.length-1));
+                g_utils.log2('ERROR: Insert to table "'+tableObject.name+'" failed arguments count: ' + (values.length-1));
                 
                 return setTimeout(callbackERR, 1, true); //callbackERR(true);
             }
@@ -330,7 +361,8 @@ function InitFunctions()
             }
             vals += ')';
             
-            console.log('INSERT INTO ' + tableObject.name + ' VALUES ' + vals);
+            //console.log('INSERT INTO ' + tableObject.name + ' VALUES ' + vals);
+            g_utils.log2("REPLACE INTO ' + tableObject.name + ' VALUES ' + vals");
             /*if (bToMemory)
             {
                 exports.addMemQuery('INSERT INTO ' + tableObject.name + ' VALUES ' + vals);
@@ -342,14 +374,14 @@ function InitFunctions()
                 remoteRun('REPLACE INTO ' + tableObject.name + ' VALUES ' + vals, err => {
                     if (callbackERR) setTimeout(callbackERR, 1, err); //callbackERR(err);
                     if (err) 
-                        console.log('INSERT error: ' + err.message);
+                        g_utils.log2('INSERT error: ' + err.message);
                     else
-                        console.log('INSERT success');
+                        g_utils.log2('INSERT success');
                 });
             //}
         }
         catch(e) {
-            console.log(e.message);
+            g_utils.log2("INSERT cath error:" + e.message);
             if (callbackERR) setTimeout(callbackERR, 1, e); //callbackERR(e);
         }
     }
