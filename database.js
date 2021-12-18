@@ -176,8 +176,15 @@ function InitSocketPool()
     
 }
 
+let syncDelayer = Date.now();
 async function GetSocketFromPool(callback)
 {
+    if (Date.now() - syncDelayer < 1000)
+    {
+        return setTimeout(GetSocketFromPool, 1000, callback);
+    }
+    syncDelayer = Date.now();
+    
     const index = getRandomInt();
     const socket = g_wsPool[index];
     

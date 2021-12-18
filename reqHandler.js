@@ -31,12 +31,14 @@ async function OnRequest(req, res)
             FillData(coin, headers);
         
         try {
+            const strHandle = "try "+coin.name+" "+JSON.parse(post_data).method;
+
             if (g_reqHandlers[strHandle] && JSON.parse(post_data).method == "getbalance" && Date.now()-g_reqHandlers[strHandle]*1 < 3000)
             {
                 res.end("");
                 return;
             }
-            const strHandle = "try "+coin.name+" "+JSON.parse(post_data).method;
+
             if (JSON.parse(post_data).method == "getbalance")
                 g_reqHandlers[strHandle] = Date.now();
                 
